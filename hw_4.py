@@ -16,7 +16,7 @@ col_normal = 0
 branch = 0
 
 
-def str2num(str):     
+def str2num(str):
     if "." not in str:  # int 
         try:
             num = int(str)
@@ -75,22 +75,25 @@ def str2num(str):
 
 
 while line != ".end":
-    line_elements = re.split('r[=\s]+', line)  # extract line elements separated by spaces and "="
+    line_elements = re.split(r'[=\s]+', line)  # extract line elements separated by spaces and "="
     if line[0] == "*":
         print "comment line:", line
     # elif line[0] in ["r","c","l","d","m","v","i","e","f","g","h","s"]:
-    elif line[0] in ["r", "c", "l", "v", "i"]:
+    elif line[0] in ["r", "c", "v", "l", "i"]:
         for i in range(1, 3):
             line_elements[i] = int(line_elements[i])
             if line_elements[i] > col_normal:
                 col_normal = line_elements[i]
         line_elements[3] = str2num(line_elements[3])
-        if line[0] == "v":
+        if line[0] != "v":
+            if line[0] == "l":
+                branch += 1
+                line_elements.append(branch)  # save branch info
+            element_list += [line_elements]  # save elements
+        else:
             branch += 1
-            line_elements.append(branch)  # save branch info
+            line_elements.append(branch)
             v_list += [line_elements]
-            # continue
-        element_list += [line_elements]  # save elements
 
     elif line[0] in ["e", "g"]:
         for i in range(1, 5):
@@ -133,7 +136,8 @@ print col_normal
 print branch
 
 rows = col_normal + branch
-MNA = np.zeros((rows, rows))
+MNA_dc = np.zeros((rows, rows))
+MNA_ac = np.zeros((rows, rows), complex)
 RHS = [0] * rows
 # k = len(element_list) - branch
 for vs in v_list:
@@ -141,12 +145,11 @@ for vs in v_list:
     n2 = vs[2] - 1
     br = vs[-1] + col_normal
     RHS[br - 1] = vs[3]
-    MNA[n1, br - 1] += 1
-    MNA[br - 1, n1] += 1
+    MNA_dc[n1, br - 1] += 1
+    MNA_dc[br - 1, n1] += 1
     if n2 >= 0:
-        MNA[n2, br - 1] += -1
-        MNA[br - 1, n2] += -1
-print v_list
+        MNA_dc[n2, br - 1] += -1
+        MNA_dc[br - 1, n2] += -1
 
 for element in element_list:
     n1 = element[1] - 1
@@ -154,11 +157,11 @@ for element in element_list:
 
     if element[0][0] == "r":
         g = 1.0 / element[3]
-        MNA[n1, n1] += g
+        MNA_dc[n1, n1] += g
         if n2 >= 0:
-            MNA[n1, n2] += -g
-            MNA[n2, n1] += -g
-            MNA[n2, n2] += g
+            MNA_dc[n1, n2] += -g
+            MNA_dc[n2, n1] += -g
+            MNA_dc[n2, n2] += g
 
     elif element[0][0] == "i":
         if n1 < 0:
@@ -172,50 +175,70 @@ for element in element_list:
         br = element[-1] + col_normal
         n3 = element[3] - 1
         n4 = element[4] - 1
-        MNA[n1, br - 1] += 1
-        MNA[br - 1, n1] += 1
-        MNA[br - 1, n3] += -element[5]
+        MNA_dc[n1, br - 1] += 1
+        MNA_dc[br - 1, n1] += 1
+        MNA_dc[br - 1, n3] += -element[5]
         if n2 >= 0:
-            MNA[n2, br - 1] += -1
-            MNA[br - 1, n2] += -1
+            MNA_dc[n2, br - 1] += -1
+            MNA_dc[br - 1, n2] += -1
         if n4 >= 0:
-            MNA[br - 1, n4] += element[5]
+            MNA_dc[br - 1, n4] += element[5]
 
     elif element[0][0] == "f":
         for v_comp in v_list:
             if v_comp[0] == element[3]:
                 br = v_comp[-1] + col_normal
                 if n1 >= 0:
-                    MNA[n1, br - 1] += element[4]
+                    MNA_dc[n1, br - 1] += element[4]
                 if n2 >= 0:
-                    MNA[n2, br - 1] += -element[4]
+                    MNA_dc[n2, br - 1] += -element[4]
                 break
 
     elif element[0][0] == "g":
         n3 = element[3] - 1
         n4 = element[4] - 1
         if n1 >= 0:
-            MNA[n1, n3] += element[5]
+            MNA_dc[n1, n3] += element[5]
             if n4 >= 0:
-                MNA[n1, n4] += -element[5]
+                MNA_dc[n1, n4] += -element[5]
         if n2 >= 0:
-            MNA[n2, n3] += -element[5]
+            MNA_dc[n2, n3] += -element[5]
             if n4 >= 0:
-                MNA[n1, n4] += element[5]
+                MNA_dc[n1, n4] += element[5]
 
     elif element[0][0] == "h":
         br_vs = element[-1] + col_normal
-        MNA[n1, br_vs - 1] += 1
-        MNA[br_vs - 1, n1] += 1
+        MNA_dc[n1, br_vs - 1] += 1
+        MNA_dc[br_vs - 1, n1] += 1
         if n2 >= 0:
-            MNA[n2, br_vs - 1] += -1
-            MNA[br_vs - 1, n2] += -1
+            MNA_dc[n2, br_vs - 1] += -1
+            MNA_dc[br_vs - 1, n2] += -1
         for v_comp in v_list:
             if v_comp[0] == element[3]:
                 br = v_comp[-1] + col_normal
-                MNA[br_vs - 1, br - 1] = -element[4]
+                MNA_dc[br_vs - 1, br - 1] = -element[4]
             break
 
+    elif element[0][0] == "c":
+        sc = complex(0, element[3])
+        MNA_ac[n1][n1] += sc
+        if n2 >= 0:
+            MNA_ac[n1, n2] += -sc
+            MNA_ac[n2, n1] += -sc
+            MNA_ac[n2, n2] += sc
+    elif element[0][0] == "l":
+        sl = complex(0, element[3])
+        br_l = element[-1] + col_normal
+        MNA_ac[n1, br_l - 1] += 1
+        MNA_ac[br_l - 1, n1] += 1
+        MNA_ac[br_l - 1, br_l - 1] += -sl
+        if n2 >= 0:
+            MNA_ac[n2, br_l - 1] += -1
+            MNA_ac[br_l - 1, n2] += -1
+MNA = MNA_dc + MNA_ac
+print MNA_dc
+print MNA_ac
 print MNA
-print MNA[2][4]
 print RHS
+x = np.linalg.solve(MNA_dc, RHS)
+print x

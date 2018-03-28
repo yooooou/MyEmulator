@@ -1,0 +1,8 @@
+*netlist example 1
+R1 1 0 5k
+G2 1 0 1 2 2.1
+R3 1 2 6
+R4 2 0 0.8k
+Is 0 2 10u
+
+.end
