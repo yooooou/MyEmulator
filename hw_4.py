@@ -75,7 +75,7 @@ def str2num(str):
 
 
 while line != ".end":
-    line_elements = re.split('[=\s]+', line)  # extract line elements separated by spaces and "="
+    line_elements = re.split('r[=\s]+', line)  # extract line elements separated by spaces and "="
     if line[0] == "*":
         print "comment line:", line
     # elif line[0] in ["r","c","l","d","m","v","i","e","f","g","h","s"]:
