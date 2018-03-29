@@ -1,11 +1,10 @@
-*netlist example 1
-R1 1 0 2
-l9 1 0 3
-G2 1 0 1 2 2
-R3 1 2 2
-R4 2 0 1
-c8 3 4 4
-Is 0 2 10
+*netlist example 2
+R1 1 0 5k
+G1 1 0 1 2 2m
+R3 1 2 6.5k
+R4 2 0 8k
+Is 0 2 10m
 Vs 3 2 5
-E1 4 0 1 2 3
+E1 4 0 1 2 3m
+R8 3 4 1k
 .end

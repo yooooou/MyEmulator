@@ -1,0 +1,6 @@
+*low-pass filter
+R1 2 0 1k
+c1 1 2 4.7u
+vs 1 0 dc 2 ac 1 
+.ac dec 10 1 100k
+.end
