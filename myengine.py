@@ -4,7 +4,6 @@
 import math
 import numpy as np
 
-# import matplotlib.pyplot as plt
 
 def dc_stamp(col_normal, MNA_dc, RHS_dc, RHS_ac, v_list, i_list, element_list, l_list):
     for vsrc in v_list:
@@ -157,7 +156,7 @@ def ac_analysis(control_command, rows, col_normal, c_list, l_list, MNA_dc, RHS_a
                  oct_step, ac_res_list, omega_list, oct_start, "oct")
 
 
-def tran_analysis(control_command, MNA_tran, tran_res_list,
+def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
                   c_list, l_list, v_list, i_list, time_list, rows, col_normal, tran_rows):
     tstep_print = control_command[1]
     tstop = control_command[2]
@@ -185,54 +184,118 @@ def tran_analysis(control_command, MNA_tran, tran_res_list,
             MNA_tran[br_c][n2] += -c_element[3] / float(tmax)
 
     for l_element in l_list:
-        br_l = rows + l_element[-1] - 1
-        MNA_tran[br_l , br_l ] += -(2.0 * l_element[3]) / tmax
+        br_l = col_normal + l_element[-1] - 1
+        MNA_tran[br_l, br_l] += -(2.0 * l_element[3]) / tmax
+    print ("tmax:%e s"%tmax)
+    print ("print step:%e s"%tstep_print)
+    print "MNA_tran:", MNA_tran
 
     time = 0
-    while time <= tstop :
+
+    if tstart == 0:
+        time_list.append(time)
+        print ("start time = %f s" % time)
+        print "results:", tran_res_list[-1]
+        tran_print_list.append(tran_res_list[-1])
+
+    else:
+        while time < tstart:
+            last_res = tran_res_list[-1]
+            RHS_tran = [0] * tran_rows
+            time += tmax
+
+            for c_element in c_list:
+                n1 = c_element[1] - 1
+                n2 = c_element[2] - 1
+                br_c = rows + c_element[-1] - 1
+                v_lt = last_res[n1]  # V(t-h)
+                i_lt = last_res[br_c]  # I(t-h)
+                if n2 >= 0:
+                    v_lt -= last_res[n2]
+                RHS_tran[br_c] += 0.5 * i_lt + v_lt * c_element[3] / float(tmax)
+
+            for l_element in l_list:
+                n1 = l_element[1] - 1
+                n2 = l_element[2] - 1
+                br_l = col_normal + l_element[-1] - 1
+                v_lt = last_res[n1]  # V(t-h)
+                i_lt = last_res[br_l]  # I(t-h)
+                if n2 >= 0:
+                    v_lt -= last_res[n2]
+                RHS_tran[br_l] += -v_lt - 2 * i_lt * l_element[3] / float(tmax)
+
+            pi2 = 2 * math.pi
+
+            for vsrc in v_list:
+                br = vsrc['branch_info'] + col_normal - 1
+                RHS_tran[br] += vsrc['dc_value'] + vsrc['tran_mag'] * math.sin(pi2 * vsrc['tran_freq'] * time)
+
+            for isrc in i_list:
+                n1 = isrc['node+'] - 1
+                n2 = isrc['node-'] - 1
+                if n1 < 0:
+                    RHS_tran[n2] += isrc['dc_value'] + isrc['tran_mag'] * math.sin(pi2 * isrc['tran_freq'] * time)
+                else:
+                    RHS_tran[n1] += -isrc['dc_value'] + isrc['tran_mag'] * math.sin(pi2 * isrc['tran_freq'] * time)
+                    if n2 >= 0:
+                        RHS_tran[n2] += isrc['dc_value'] + isrc['tran_mag'] * math.sin(pi2 * isrc['tran_freq'] * time)
+
+            cur_res = np.linalg.solve(MNA_tran, RHS_tran)
+            tran_res_list.append(cur_res)
+
+    time_n_printstep = time + tstep_print
+    time_list.append(time)
+    print ("start time = %f s" % time)
+    print "results:", tran_res_list[-1]
+    tran_print_list.append(tran_res_list[-1])
+
+    while time < tstop:
+        last_res = tran_res_list[-1]
         RHS_tran = [0] * tran_rows
         time += tmax
-        last_res = tran_res_list[-1]
         for c_element in c_list:
             n1 = c_element[1] - 1
             n2 = c_element[2] - 1
             br_c = rows + c_element[-1] - 1
-            v_lt = last_res[n1]        # Vt-h
-            i_lt = last_res[br_c]      # It-h
-            if n2>=0:
+            v_lt = last_res[n1]  # V(t-h)
+            i_lt = last_res[br_c]  # I(t-h)
+            if n2 >= 0:
                 v_lt -= last_res[n2]
             RHS_tran[br_c] += 0.5 * i_lt + v_lt * c_element[3] / float(tmax)
 
         for l_element in l_list:
             n1 = l_element[1] - 1
             n2 = l_element[2] - 1
-            br_l = rows + l_element[-1] - 1
-            v_lt = last_res[n1]        # Vt-h
-            i_lt = last_res[br_l]      # It-h
-            if n2>=0:
+            br_l = col_normal + l_element[-1] - 1
+            v_lt = last_res[n1]  # V(t-h)
+            i_lt = last_res[br_l]  # I(t-h)
+            if n2 >= 0:
                 v_lt -= last_res[n2]
-            RHS_tran[br_l] +=  -v_lt - 2*i_lt * l_element[3] / float(tmax)
-        
-        pi2 = 2*math.pi
-        
+            RHS_tran[br_l] += -v_lt - 2 * i_lt * l_element[3] / float(tmax)
+
+        pi2 = 2 * math.pi
+
         for vsrc in v_list:
             br = vsrc['branch_info'] + col_normal - 1
-            RHS_tran[br] += vsrc['dc_value'] + vsrc['tran_mag']*math.sin(pi2*vsrc['tran_freq']*time)
+            RHS_tran[br] += vsrc['dc_value'] + vsrc['tran_mag'] * math.sin(pi2 * vsrc['tran_freq'] * time)
 
         for isrc in i_list:
             n1 = isrc['node+'] - 1
             n2 = isrc['node-'] - 1
             if n1 < 0:
-                RHS_tran[n2] += isrc['dc_value'] + isrc['tran_mag']*math.sin(pi2*isrc['tran_freq']*time)
+                RHS_tran[n2] += isrc['dc_value'] + isrc['tran_mag'] * math.sin(pi2 * isrc['tran_freq'] * time)
             else:
-                RHS_tran[n1] += -isrc['dc_value'] + isrc['tran_mag']*math.sin(pi2*isrc['tran_freq']*time)
+                RHS_tran[n1] += -isrc['dc_value'] + isrc['tran_mag'] * math.sin(pi2 * isrc['tran_freq'] * time)
                 if n2 >= 0:
-                    RHS_tran[n2] += isrc['dc_value'] + isrc['tran_mag']*math.sin(pi2*isrc['tran_freq']*time)
-            
-        
+                    RHS_tran[n2] += isrc['dc_value'] + isrc['tran_mag'] * math.sin(pi2 * isrc['tran_freq'] * time)
+
         cur_res = np.linalg.solve(MNA_tran, RHS_tran)
         tran_res_list.append(cur_res)
-        time += tmax
-
-
-
+        if time >= time_n_printstep:
+            time_list.append(time)
+            print " "
+            print ("time = %e s" % time)
+            print "RHS_tran:", RHS_tran
+            print "results:", cur_res
+            tran_print_list.append(cur_res)
+            time_n_printstep += tstep_print

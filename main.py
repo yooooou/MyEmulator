@@ -66,7 +66,7 @@ for control_command in control_list:
             plot_amplitude.append(amplitude)
             plot_phase.append(phase)
         for omega in omega_list:
-            f_list.append(math.log10(omega / (2*math.pi)))
+            f_list.append(math.log10(omega / (2 * math.pi)))
         plt.subplot(2, 1, 1)
         plt.plot(f_list, plot_amplitude)
         plt.subplot(2, 1, 2)
@@ -76,10 +76,19 @@ for control_command in control_list:
     if "tran" in control_command:
         tran_rows = rows + branch_c
         tran_res_list = []
-        tran_res_t0 = dc_res + [0] * branch_c
+        tran_print_list = []
+        tran_res_t0 = list(dc_res) + [0] * branch_c
+        # print tran_res_t0
         tran_res_list.append(tran_res_t0)
-        MNA_tran_cols = np.zeros((rows,branch_c))  #branch_c zero cols
-        MNA_tran_rows = np.zeros((branch_c,tran_rows))  #branch_c zero rows
-        MNA_tran = np.vstack((np.hstack((MNA_dc,MNA_tran_cols)),MNA_tran_rows))
+        MNA_tran_cols = np.zeros((rows, branch_c))  # branch_c zero cols
+        MNA_tran_rows = np.zeros((branch_c, tran_rows))  # branch_c zero rows
+        MNA_tran = np.vstack((np.hstack((MNA_dc, MNA_tran_cols)), MNA_tran_rows))
         time_list = []
         print "****************************tran analysis***************************************"
+        myengine.tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list, c_list, l_list,
+                               v_list, i_list, time_list, rows, col_normal, tran_rows)
+        plot_voltage = []
+        for v2 in tran_print_list:
+            plot_voltage.append(v2[4])
+        plt.plot(time_list, plot_voltage)
+        plt.show()
