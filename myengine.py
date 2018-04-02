@@ -186,8 +186,9 @@ def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
     for l_element in l_list:
         br_l = col_normal + l_element[-1] - 1
         MNA_tran[br_l, br_l] += -(2.0 * l_element[3]) / tmax
-    print ("tmax:%e s"%tmax)
-    print ("print step:%e s"%tstep_print)
+
+    print ("tmax:%e s" % tmax)
+    print ("print step:%e s" % tstep_print)
     print "MNA_tran:", MNA_tran
 
     time = 0
@@ -243,12 +244,12 @@ def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
             cur_res = np.linalg.solve(MNA_tran, RHS_tran)
             tran_res_list.append(cur_res)
 
-    time_n_printstep = time + tstep_print
-    time_list.append(time)
-    print ("start time = %f s" % time)
-    print "results:", tran_res_list[-1]
-    tran_print_list.append(tran_res_list[-1])
+        time_list.append(time)
+        print ("start time = %f s" % time)
+        print "results:", tran_res_list[-1]
+        tran_print_list.append(tran_res_list[-1])
 
+    time_n_printstep = time + tstep_print
     while time < tstop:
         last_res = tran_res_list[-1]
         RHS_tran = [0] * tran_rows

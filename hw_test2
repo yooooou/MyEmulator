@@ -1,4 +1,4 @@
-*RLC CIRCUIT
+*two stage RLC CIRCUIT
 vs 1 0 sin(2.5 2.5 1meg)
 r1 1 2 1k
 l1 2 3 0.01
@@ -6,5 +6,5 @@ c1 3 0 500p
 r2 3 4 1k
 l2 4 5 0.01
 c2 5 0 100p
-.tran 50ns  50u 1u 1ns
+.tran 20ns  40u 1u 1ns
 .END
