@@ -5,7 +5,7 @@ import math
 import numpy as np
 
 
-def dc_stamp(col_normal, MNA_dc, RHS_dc, RHS_ac, v_list, i_list, element_list, l_list):
+def dc_stamp(col_normal, MNA_dc, RHS_dc, RHS_ac, v_list, i_list, d_list, element_list, l_list, rows):
     for vsrc in v_list:
         n1 = vsrc['node+'] - 1
         n2 = vsrc['node-'] - 1
@@ -97,6 +97,7 @@ def dc_stamp(col_normal, MNA_dc, RHS_dc, RHS_ac, v_list, i_list, element_list, l
             MNA_dc[n2, br_l - 1] += -1
             MNA_dc[br_l - 1, n2] += -1
 
+    return diode_analysis(d_list, MNA_dc, RHS_dc, rows)
 
 def ac_sweep(rows, col_normal, c_list, l_list, MNA_dc, RHS_ac, points, step, ac_res_list, omega_list, start, type):
     for i in range(points):
@@ -157,7 +158,7 @@ def ac_analysis(control_command, rows, col_normal, c_list, l_list, MNA_dc, RHS_a
 
 
 def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
-                  c_list, l_list, v_list, i_list, time_list, rows, col_normal, tran_rows):
+                  c_list, l_list, v_list, i_list, d_list, time_list, rows, col_normal, tran_rows):
     tstep_print = control_command[1]
     tstop = control_command[2]
     if len(control_command) > 3:
@@ -204,7 +205,6 @@ def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
             last_res = tran_res_list[-1]
             RHS_tran = [0] * tran_rows
             time += tmax
-
             for c_element in c_list:
                 n1 = c_element[1] - 1
                 n2 = c_element[2] - 1
@@ -214,7 +214,6 @@ def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
                 if n2 >= 0:
                     v_lt -= last_res[n2]
                 RHS_tran[br_c] += 0.5 * i_lt + v_lt * c_element[3] / float(tmax)
-
             for l_element in l_list:
                 n1 = l_element[1] - 1
                 n2 = l_element[2] - 1
@@ -241,9 +240,9 @@ def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
                     if n2 >= 0:
                         RHS_tran[n2] += isrc['dc_value'] + isrc['tran_mag'] * math.sin(pi2 * isrc['tran_freq'] * time)
 
-            cur_res = np.linalg.solve(MNA_tran, RHS_tran)
+            cur_res = diode_analysis(d_list, MNA_tran, RHS_tran, tran_rows)
+            # cur_res = np.linalg.solve(MNA_tran, RHS_tran)
             tran_res_list.append(cur_res)
-
         time_list.append(time)
         print ("start time = %f s" % time)
         print "results:", tran_res_list[-1]
@@ -263,7 +262,6 @@ def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
             if n2 >= 0:
                 v_lt -= last_res[n2]
             RHS_tran[br_c] += 0.5 * i_lt + v_lt * c_element[3] / float(tmax)
-
         for l_element in l_list:
             n1 = l_element[1] - 1
             n2 = l_element[2] - 1
@@ -290,7 +288,8 @@ def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
                 if n2 >= 0:
                     RHS_tran[n2] += isrc['dc_value'] + isrc['tran_mag'] * math.sin(pi2 * isrc['tran_freq'] * time)
 
-        cur_res = np.linalg.solve(MNA_tran, RHS_tran)
+        cur_res = diode_analysis(d_list, MNA_tran, RHS_tran, tran_rows)
+        # cur_res = np.linalg.solve(MNA_tran, RHS_tran)
         tran_res_list.append(cur_res)
         if time >= time_n_printstep:
             time_list.append(time)
@@ -300,3 +299,63 @@ def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
             print "results:", cur_res
             tran_print_list.append(cur_res)
             time_n_printstep += tstep_print
+
+def diode_analysis(d_list, MNA_base, RHS_base, rows):
+    if len(d_list) == 0:
+        print "linear"
+        print "MNA:", MNA_base
+        print "RHS:", RHS_base
+        res = np.linalg.solve(MNA_base, RHS_base)
+        print "results:", res
+    else:
+        print "Nonlinear"
+        flag = 0
+        times = 1
+        while flag == 0 :
+            flag = 1
+            MNA_diode = np.zeros((rows, rows))
+            RHS_diode = [0] * rows
+            for d_element in d_list:
+                n1 = d_element[1] - 1
+                n2 = d_element[2] - 1
+                if times == 1:
+                    vd = 0.1
+                    flag = 0
+                elif times == 2 :
+                    vd = res[n1]
+                    if n2 >= 0:
+                        vd -= res[n2]
+                    vd_last = 0.1
+                    if abs(vd-vd_last) > 0.02*vd_last :
+                        flag = 0
+                else:
+                    vd = res[n1]
+                    vd_last = res_last[n1]
+                    if n2 >= 0:
+                        vd -= res[n2]
+                        vd_last -= res_last[n2]
+                    if abs(vd-vd_last) > 0.02*vd_last :
+                        flag = 0
+                G0 = 40*math.exp(40*vd)
+                I0 = -G0*vd + math.exp(40*vd) - 1
+                MNA_diode[n1, n1] += G0
+                RHS_diode[n1] += -I0
+                if n2 >= 0:
+                    MNA_diode[n1, n2] += -G0
+                    MNA_diode[n2, n1] += -G0
+                    MNA_diode[n2, n2] += G0
+                    RHS_diode[n2] += I0
+                MNA_diode += MNA_base
+                RHS_diode = map(lambda (a, b): a + b, zip(RHS_diode, RHS_base))
+            if flag == 1:
+                print "final results:", res
+                break
+            if times > 1:
+                res_last = res
+            res = list(np.linalg.solve(MNA_diode, RHS_diode))
+            print "times:", times
+            print "MNA:", MNA_diode
+            print "RHS:", RHS_diode
+            print "results:", res
+            times += 1
+    return res

@@ -1,0 +1,6 @@
+*simple diode CIRCUIT
+Is 0 1 1
+r1 1 0 1
+r2 1 2 0.5
+d1 2 0
+.END

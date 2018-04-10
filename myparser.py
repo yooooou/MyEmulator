@@ -63,7 +63,7 @@ def str2num(str):
                     num *= 1e-3
     return num
 
-def line_parser(line, col_br_list, l_list, c_list, element_list, v_list, i_list, control_list, model_list):
+def line_parser(line, col_br_list, l_list, c_list, element_list, v_list, i_list, d_list, control_list, model_list):
     col_normal= col_br_list[0]
     branch = col_br_list[1]
     branch_c = col_br_list[2]
@@ -71,7 +71,7 @@ def line_parser(line, col_br_list, l_list, c_list, element_list, v_list, i_list,
     if line[0] == "*":
         print "comment line:", line
     # elif line[0] in ["r","c","l","d","m","v","i","e","f","g","h","s"]:
-    elif line[0] in ["r", "c", "v", "l", "i"]:
+    elif line[0] in ["r", "c", "v", "l", "i", "d"]:
 
         for i in range(1, 3):
             line_elements[i] = int(line_elements[i])
@@ -84,15 +84,17 @@ def line_parser(line, col_br_list, l_list, c_list, element_list, v_list, i_list,
                       "ac_mag":0,"ac_phase":0,"tran_mag":0,"tran_freq":0,"branch_info":branch}
             if "dc" in line_elements:
                 line_elements.remove("dc")
-                v_dict['dc_value'] = str2num(line_elements[3])
-            if "ac" in line_elements:
-                index_ac = line_elements.index("ac")
-                v_dict['ac_mag'] = str2num(line_elements[index_ac+1])
-            if "sin" in line_elements:
-                index_sin = line_elements.index("sin")
-                v_dict["dc_value"] = str2num(line_elements[index_sin+1])
-                v_dict["tran_mag"] = str2num(line_elements[index_sin+2])
-                v_dict["tran_freq"] = str2num(line_elements[index_sin+3])
+            if len(line_elements) > 3:
+                try:v_dict['dc_value'] = str2num(line_elements[3])
+                except ValueError: pass
+                if "ac" in line_elements:
+                    index_ac = line_elements.index("ac")
+                    v_dict['ac_mag'] = str2num(line_elements[index_ac+1])
+                if "sin" in line_elements:
+                    index_sin = line_elements.index("sin")
+                    v_dict["dc_value"] = str2num(line_elements[index_sin+1])
+                    v_dict["tran_mag"] = str2num(line_elements[index_sin+2])
+                    v_dict["tran_freq"] = str2num(line_elements[index_sin+3])
             v_list.append(v_dict)
 
         elif line[0] == "i":
@@ -100,16 +102,22 @@ def line_parser(line, col_br_list, l_list, c_list, element_list, v_list, i_list,
                       "ac_mag":0,"ac_phase":0,"tran_mag":0,"tran_freq":0}
             if "dc" in line_elements:
                 line_elements.remove("dc")
-                i_dict['dc_value'] = str2num(line_elements[3])
-            if "ac" in line_elements:
-                index_ac = line_elements.index("ac")
-                i_dict['ac_mag'] = str2num(line_elements[index_ac+1])
-            if "sin" in line_elements:
-                index_sin = line_elements.index("sin")
-                i_dict["dc_value"] = str2num(line_elements[index_sin+1])
-                i_dict["tran_mag"] = str2num(line_elements[index_sin+2])
-                i_dict["tran_freq"] = str2num(line_elements[index_sin+3])
+            if len(line_elements) > 3:
+                try: i_dict['dc_value'] = str2num(line_elements[3])
+                except ValueError: pass
+                if "ac" in line_elements:
+                    index_ac = line_elements.index("ac")
+                    i_dict['ac_mag'] = str2num(line_elements[index_ac+1])
+                if "sin" in line_elements:
+                    index_sin = line_elements.index("sin")
+                    i_dict["dc_value"] = str2num(line_elements[index_sin+1])
+                    i_dict["tran_mag"] = str2num(line_elements[index_sin+2])
+                    i_dict["tran_freq"] = str2num(line_elements[index_sin+3])
             i_list.append(i_dict)
+
+        elif line[0] == "d":
+            d_list += [line_elements]
+
         else:
             line_elements[3] = str2num(line_elements[3])
             if line[0] == "l":
@@ -169,17 +177,19 @@ if __name__ == '__main__':
     i_list = []
     l_list = []
     c_list = []
+    d_list = []
     control_list = []
     model_list = []
     line = file_handle.readline().strip().lower()
-    col_br_list = [0,0]
+    col_br_list = [0,0,0]
     while line != ".end":
-        line_parser(line, col_br_list, l_list, c_list, element_list, v_list, control_list, model_list)
+        line_parser(line, col_br_list, l_list, c_list, element_list, v_list, i_list, d_list, control_list, model_list)
         line = file_handle.readline().strip().lower()
         if not line:
             break
     col_normal = col_br_list[0]
     branch = col_br_list[1]
+    branch_c = col_br_list[2]
     print "******************************parser***************************************"
     print "element_list:", element_list
     print "v_list:", v_list

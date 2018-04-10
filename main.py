@@ -14,12 +14,13 @@ v_list = []
 i_list = []
 l_list = []
 c_list = []
+d_list = []
 control_list = []
 model_list = []
 line = file_handle.readline().strip().lower()
 col_br_list = [0, 0, 0]
 while line != ".end":
-    myparser.line_parser(line, col_br_list, l_list, c_list, element_list, v_list, i_list, control_list, model_list)
+    myparser.line_parser(line, col_br_list, l_list, c_list, element_list, v_list, i_list, d_list, control_list, model_list)
     line = file_handle.readline().strip().lower()
     if not line:
         break
@@ -29,8 +30,10 @@ branch_c = col_br_list[2]
 print "******************************parser***************************************"
 print "element_list:", element_list
 print "v_list:", v_list
+print "i_list:", i_list
 print "c_list:", c_list
 print "l_list:", l_list
+print "d_list:", d_list
 print "control_list:", control_list
 print "model_list:", model_list
 print "col_normal:", col_normal
@@ -41,11 +44,7 @@ rows = col_normal + branch
 MNA_dc = np.zeros((rows, rows))
 RHS_dc = [0] * rows
 RHS_ac = [0] * rows
-myengine.dc_stamp(col_normal, MNA_dc, RHS_dc, RHS_ac, v_list, i_list, element_list, l_list)
-print "MNA_dc:", MNA_dc
-print "RHS_dc:", RHS_dc
-dc_res = np.linalg.solve(MNA_dc, RHS_dc)
-print "dc results:", dc_res
+dc_res = myengine.dc_stamp(col_normal, MNA_dc, RHS_dc, RHS_ac, v_list, i_list, d_list, element_list, l_list, rows)
 
 for control_command in control_list:
     if "ac" in control_command:
@@ -86,9 +85,9 @@ for control_command in control_list:
         time_list = []
         print "****************************tran analysis***************************************"
         myengine.tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list, c_list, l_list,
-                               v_list, i_list, time_list, rows, col_normal, tran_rows)
+                               v_list, i_list, d_list, time_list, rows, col_normal, tran_rows)
         plot_voltage = []
         for v2 in tran_print_list:
-            plot_voltage.append(v2[4])
+            plot_voltage.append(v2[1])
         plt.plot(time_list, plot_voltage)
         plt.show()
