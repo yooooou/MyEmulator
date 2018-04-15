@@ -63,7 +63,8 @@ def str2num(str):
                     num *= 1e-3
     return num
 
-def line_parser(line, col_br_list, l_list, c_list, element_list, v_list, i_list, d_list, control_list, model_list):
+def line_parser(line, col_br_list, l_list, c_list, element_list, v_list, i_list, d_list, mos_list,
+                control_list, model_list):
     col_normal= col_br_list[0]
     branch = col_br_list[1]
     branch_c = col_br_list[2]
@@ -71,7 +72,7 @@ def line_parser(line, col_br_list, l_list, c_list, element_list, v_list, i_list,
     if line[0] == "*":
         print "comment line:", line
     # elif line[0] in ["r","c","l","d","m","v","i","e","f","g","h","s"]:
-    elif line[0] in ["r", "c", "v", "l", "i", "d"]:
+    elif line[0] in ["r", "c", "v", "l", "i", "d", "m"]:
 
         for i in range(1, 3):
             line_elements[i] = int(line_elements[i])
@@ -81,7 +82,8 @@ def line_parser(line, col_br_list, l_list, c_list, element_list, v_list, i_list,
         if line[0] == "v":
             branch += 1
             v_dict = {"name":line_elements[0],"node+":line_elements[1],"node-":line_elements[2],"dc_value":0,
-                      "ac_mag":0,"ac_phase":0,"tran_mag":0,"tran_freq":0,"branch_info":branch}
+                      "tran_type":"non", "ac_mag":0,"ac_phase":0,"tran_mag":0,"tran_freq":0,"branch_info":branch,
+                      "pulse_v1":0, "pulse_v2":0, "td":0, "tr":0, "tf":0, "pw":0, "per":0}
             if "dc" in line_elements:
                 line_elements.remove("dc")
             if len(line_elements) > 3:
@@ -92,14 +94,27 @@ def line_parser(line, col_br_list, l_list, c_list, element_list, v_list, i_list,
                     v_dict['ac_mag'] = str2num(line_elements[index_ac+1])
                 if "sin" in line_elements:
                     index_sin = line_elements.index("sin")
+                    v_dict["tran_type"] = "sin"
                     v_dict["dc_value"] = str2num(line_elements[index_sin+1])
                     v_dict["tran_mag"] = str2num(line_elements[index_sin+2])
                     v_dict["tran_freq"] = str2num(line_elements[index_sin+3])
+                if "pulse" in line_elements:
+                    index_pulse = line_elements.index("pulse")
+                    v_dict["tran_type"] = "pulse"
+                    v_dict["dc_value"] = str2num(line_elements[index_pulse+1])
+                    v_dict["pulse_v1"] = v_dict["dc_value"]
+                    v_dict["pulse_v2"] = str2num(line_elements[index_pulse+2])
+                    v_dict["td"] = str2num(line_elements[index_pulse+3])
+                    v_dict["tr"] = str2num(line_elements[index_pulse+4])
+                    v_dict["tf"] = str2num(line_elements[index_pulse+5])
+                    v_dict["pw"] = str2num(line_elements[index_pulse+6])
+                    v_dict["per"] = str2num(line_elements[index_pulse+7])
             v_list.append(v_dict)
 
         elif line[0] == "i":
             i_dict = {"name":line_elements[0],"node+":line_elements[1],"node-":line_elements[2],"dc_value":0,
-                      "ac_mag":0,"ac_phase":0,"tran_mag":0,"tran_freq":0}
+                      "tran_type":"non", "ac_mag":0,"ac_phase":0,"tran_mag":0,"tran_freq":0,"branch_info":branch,
+                      "pulse_v1":0, "pulse_v2":0, "td":0, "tr":0, "tf":0, "pw":0, "per":0}
             if "dc" in line_elements:
                 line_elements.remove("dc")
             if len(line_elements) > 3:
@@ -110,13 +125,41 @@ def line_parser(line, col_br_list, l_list, c_list, element_list, v_list, i_list,
                     i_dict['ac_mag'] = str2num(line_elements[index_ac+1])
                 if "sin" in line_elements:
                     index_sin = line_elements.index("sin")
-                    i_dict["dc_value"] = str2num(line_elements[index_sin+1])
-                    i_dict["tran_mag"] = str2num(line_elements[index_sin+2])
-                    i_dict["tran_freq"] = str2num(line_elements[index_sin+3])
+                    i_dict["tran_type"] = "sin"
+                    i_dict["dc_value"] = str2num(line_elements[index_sin + 1])
+                    i_dict["tran_mag"] = str2num(line_elements[index_sin + 2])
+                    i_dict["tran_freq"] = str2num(line_elements[index_sin + 3])
+                if "pulse" in line_elements:
+                    index_pulse = line_elements.index("pulse")
+                    i_dict["tran_type"] = "pulse"
+                    i_dict["pulse_v1"] = str2num(line_elements[index_pulse + 1])
+                    i_dict["pulse_v2"] = str2num(line_elements[index_pulse + 2])
+                    i_dict["td"] = str2num(line_elements[index_pulse + 3])
+                    i_dict["tr"] = str2num(line_elements[index_pulse + 4])
+                    i_dict["tf"] = str2num(line_elements[index_pulse + 5])
+                    i_dict["pw"] = str2num(line_elements[index_pulse + 6])
+                    i_dict["per"] = str2num(line_elements[index_pulse + 7])
             i_list.append(i_dict)
 
         elif line[0] == "d":
             d_list += [line_elements]
+
+        elif line[0] == "m":
+            for i in range(3, 5):
+                line_elements[i] = int(line_elements[i])
+                if line_elements[i] > col_normal:
+                    col_normal = line_elements[i]
+
+            mos_dict = {"name":line_elements[0], "drain":line_elements[1], "gate":line_elements[2],
+                        "source":line_elements[3], "body": line_elements[4],
+                        "model_name":line_elements[5], "length":1e-6, "width":1e-6}
+            if "l" in line_elements:
+                index_length = line_elements.index("l")
+                mos_dict['length'] = str2num(line_elements[index_length + 1])
+            if "w" in line_elements:
+                index_width = line_elements.index("w")
+                mos_dict['width'] = str2num(line_elements[index_width + 1])
+            mos_list.append(mos_dict)
 
         else:
             line_elements[3] = str2num(line_elements[3])

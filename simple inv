@@ -1,0 +1,7 @@
+*simple inv for tran sim
+vin 1 0 pulse 0 1.8 2ns 2ns 2ns 8ns 30ns
+vcc 3 0 1.8
+mn1 2 1 0 0 nmos w=2u l=1u
+mp1 2 1 3 3 pmos w=4u l=1u
+.tran 1ns 32ns 0ns 1ns
+.END

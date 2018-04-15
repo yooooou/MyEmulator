@@ -5,7 +5,7 @@ import math
 import numpy as np
 
 
-def dc_stamp(col_normal, MNA_dc, RHS_dc, RHS_ac, v_list, i_list, d_list, element_list, l_list, rows):
+def dc_stamp(col_normal, MNA_dc, RHS_dc, RHS_ac, v_list, i_list, d_list, mos_list, element_list, l_list, rows):
     for vsrc in v_list:
         n1 = vsrc['node+'] - 1
         n2 = vsrc['node-'] - 1
@@ -97,7 +97,8 @@ def dc_stamp(col_normal, MNA_dc, RHS_dc, RHS_ac, v_list, i_list, d_list, element
             MNA_dc[n2, br_l - 1] += -1
             MNA_dc[br_l - 1, n2] += -1
 
-    return diode_analysis(d_list, MNA_dc, RHS_dc, rows)
+    return nonlinear_analysis(d_list, mos_list, MNA_dc, RHS_dc, rows)
+
 
 def ac_sweep(rows, col_normal, c_list, l_list, MNA_dc, RHS_ac, points, step, ac_res_list, omega_list, start, type):
     for i in range(points):
@@ -158,7 +159,7 @@ def ac_analysis(control_command, rows, col_normal, c_list, l_list, MNA_dc, RHS_a
 
 
 def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
-                  c_list, l_list, v_list, i_list, d_list, time_list, rows, col_normal, tran_rows):
+                  c_list, l_list, v_list, i_list, d_list, mos_list, time_list, rows, col_normal, tran_rows):
     tstep_print = control_command[1]
     tstop = control_command[2]
     if len(control_command) > 3:
@@ -228,19 +229,53 @@ def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
 
             for vsrc in v_list:
                 br = vsrc['branch_info'] + col_normal - 1
-                RHS_tran[br] += vsrc['dc_value'] + vsrc['tran_mag'] * math.sin(pi2 * vsrc['tran_freq'] * time)
+                if(vsrc['tran_type'] == "sin"):
+                    RHS_tran[br] += vsrc['dc_value'] + vsrc['tran_mag'] * math.sin(pi2 * vsrc['tran_freq'] * time)
+                if(vsrc['tran_type']=="pulse"):
+                    slope_r = (vsrc['pulse_v2'] - vsrc['pulse_v1'])/vsrc['tr']
+                    slope_f = -(vsrc['pulse_v2'] - vsrc['pulse_v1'])/vsrc['tf']
+                    if time <= vsrc['td']:
+                        RHS_tran[br] += vsrc['dc_value']
+                    else:
+                        time_in_per = time - vsrc['td'] - int((time - vsrc['td'])/vsrc['per'])*vsrc['per']
+                        print "time_in_per",time_in_per
+                        if time_in_per < vsrc['tr']:
+                            RHS_tran[br] += vsrc['pulse_v1'] + time_in_per*slope_r
+                        elif time_in_per<vsrc['tr']+vsrc['pw']:
+                            RHS_tran[br] += vsrc['pulse_v2']
+                        elif time_in_per<vsrc['tr']+vsrc['pw']+vsrc['tf']:
+                            RHS_tran[br] += vsrc['pulse_v2'] + slope_f*(time_in_per-vsrc['tr']-vsrc['pw'])
+                        else:
+                            RHS_tran[br] += vsrc['pulse_v1']
 
             for isrc in i_list:
                 n1 = isrc['node+'] - 1
                 n2 = isrc['node-'] - 1
                 if n1 < 0:
-                    RHS_tran[n2] += isrc['dc_value'] + isrc['tran_mag'] * math.sin(pi2 * isrc['tran_freq'] * time)
+                    if (isrc['tran_type'] == "sin"):
+                         value_plus = isrc['dc_value'] + isrc['tran_mag'] * math.sin(pi2 * isrc['tran_freq'] * time)
+                    if (isrc['tran_type'] == "pulse"):
+                        slope_r = (isrc['pulse_v2'] - isrc['pulse_v1']) / isrc['tr']
+                        slope_f = -(isrc['pulse_v2'] - isrc['pulse_v1']) / isrc['tf']
+                        if time <= isrc['td']:
+                             value_plus = isrc['dc_value']
+                        else:
+                            time_in_per = time - isrc['td'] - int((time - isrc['td']) / isrc['per']) * isrc['per']
+                            if time_in_per < isrc['tr']:
+                                 value_plus = isrc['pulse_v1'] + time_in_per * slope_r
+                            elif time_in_per < isrc['tr'] + isrc['pw']:
+                                 value_plus = isrc['pulse_v2']
+                            elif time_in_per < isrc['tr'] + isrc['pw'] + isrc['tf']:
+                                 value_plus = isrc['pulse_v2'] + slope_f * (time_in_per - isrc['tr'] - isrc['pw'])
+                            else:
+                                 value_plus = isrc['pulse_v1']
+                    RHS_tran[n2] += value_plus
                 else:
-                    RHS_tran[n1] += -isrc['dc_value'] + isrc['tran_mag'] * math.sin(pi2 * isrc['tran_freq'] * time)
+                    RHS_tran[n1] += -value_plus
                     if n2 >= 0:
-                        RHS_tran[n2] += isrc['dc_value'] + isrc['tran_mag'] * math.sin(pi2 * isrc['tran_freq'] * time)
+                        RHS_tran[n2] += value_plus
 
-            cur_res = diode_analysis(d_list, MNA_tran, RHS_tran, tran_rows)
+            cur_res = nonlinear_analysis(d_list, mos_list, MNA_tran, RHS_tran, tran_rows)
             # cur_res = np.linalg.solve(MNA_tran, RHS_tran)
             tran_res_list.append(cur_res)
         time_list.append(time)
@@ -276,19 +311,57 @@ def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
 
         for vsrc in v_list:
             br = vsrc['branch_info'] + col_normal - 1
-            RHS_tran[br] += vsrc['dc_value'] + vsrc['tran_mag'] * math.sin(pi2 * vsrc['tran_freq'] * time)
+            if(vsrc['tran_type'] == "non"):
+                RHS_tran[br] += vsrc['dc_value']
+            if (vsrc['tran_type'] == "sin"):
+                RHS_tran[br] += vsrc['dc_value'] + vsrc['tran_mag'] * math.sin(pi2 * vsrc['tran_freq'] * time)
+            if (vsrc['tran_type'] == "pulse"):
+                slope_r = (vsrc['pulse_v2'] - vsrc['pulse_v1']) / vsrc['tr']
+                slope_f = -(vsrc['pulse_v2'] - vsrc['pulse_v1']) / vsrc['tf']
+                if time <= vsrc['td']:
+                    RHS_tran[br] += vsrc['dc_value']
+                else:
+                    time_in_per = time - vsrc['td'] - int((time - vsrc['td']) / vsrc['per']) * vsrc['per']
+                    print "time_in_per", time_in_per
+                    if time_in_per < vsrc['tr']:
+                        RHS_tran[br] += vsrc['pulse_v1'] + time_in_per * slope_r
+                    elif time_in_per < vsrc['tr'] + vsrc['pw']:
+                        RHS_tran[br] += vsrc['pulse_v2']
+                    elif time_in_per < vsrc['tr'] + vsrc['pw'] + vsrc['tf']:
+                        RHS_tran[br] += vsrc['pulse_v2'] + slope_f * (time_in_per - vsrc['tr'] - vsrc['pw'])
+                    else:
+                        RHS_tran[br] += vsrc['pulse_v1']
 
         for isrc in i_list:
             n1 = isrc['node+'] - 1
             n2 = isrc['node-'] - 1
             if n1 < 0:
-                RHS_tran[n2] += isrc['dc_value'] + isrc['tran_mag'] * math.sin(pi2 * isrc['tran_freq'] * time)
+                if (vsrc['tran_type'] == "non"):
+                    value_plus += vsrc['dc_value']
+                if (isrc['tran_type'] == "sin"):
+                    value_plus = isrc['dc_value'] + isrc['tran_mag'] * math.sin(pi2 * isrc['tran_freq'] * time)
+                if (isrc['tran_type'] == "pulse"):
+                    slope_r = (isrc['pulse_v2'] - isrc['pulse_v1']) / isrc['tr']
+                    slope_f = -(isrc['pulse_v2'] - isrc['pulse_v1']) / isrc['tf']
+                    if time <= isrc['td']:
+                        value_plus = isrc['dc_value']
+                    else:
+                        time_in_per = time - isrc['td'] - int((time - isrc['td']) / isrc['per']) * isrc['per']
+                        if time_in_per < isrc['tr']:
+                            value_plus = isrc['pulse_v1'] + time_in_per * slope_r
+                        elif time_in_per < isrc['tr'] + isrc['pw']:
+                            value_plus = isrc['pulse_v2']
+                        elif time_in_per < isrc['tr'] + isrc['pw'] + isrc['tf']:
+                            value_plus = isrc['pulse_v2'] + slope_f * (time_in_per - isrc['tr'] - isrc['pw'])
+                        else:
+                            value_plus = isrc['pulse_v1']
+                RHS_tran[n2] += value_plus
             else:
-                RHS_tran[n1] += -isrc['dc_value'] + isrc['tran_mag'] * math.sin(pi2 * isrc['tran_freq'] * time)
+                RHS_tran[n1] += -value_plus
                 if n2 >= 0:
-                    RHS_tran[n2] += isrc['dc_value'] + isrc['tran_mag'] * math.sin(pi2 * isrc['tran_freq'] * time)
+                    RHS_tran[n2] += value_plus
 
-        cur_res = diode_analysis(d_list, MNA_tran, RHS_tran, tran_rows)
+        cur_res = nonlinear_analysis(d_list, mos_list, MNA_tran, RHS_tran, tran_rows)
         # cur_res = np.linalg.solve(MNA_tran, RHS_tran)
         tran_res_list.append(cur_res)
         if time >= time_n_printstep:
@@ -300,33 +373,34 @@ def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
             tran_print_list.append(cur_res)
             time_n_printstep += tstep_print
 
-def diode_analysis(d_list, MNA_base, RHS_base, rows):
-    if len(d_list) == 0:
+
+def nonlinear_analysis(d_list, mos_list, MNA_base, RHS_base, rows):
+    if len(d_list) == 0 and len(mos_list) == 0:
         print "linear"
         print "MNA:", MNA_base
         print "RHS:", RHS_base
         res = np.linalg.solve(MNA_base, RHS_base)
         print "results:", res
     else:
-        print "Nonlinear"
+        # print "Nonlinear"
         flag = 0
         times = 1
-        while flag == 0 :
+        while flag == 0:
             flag = 1
-            MNA_diode = np.zeros((rows, rows))
-            RHS_diode = [0] * rows
+            MNA_nonlinear = np.zeros((rows, rows))
+            RHS_nonlinear = [0] * rows
             for d_element in d_list:
                 n1 = d_element[1] - 1
                 n2 = d_element[2] - 1
                 if times == 1:
                     vd = 0.1
                     flag = 0
-                elif times == 2 :
+                elif times == 2:
                     vd = res[n1]
                     if n2 >= 0:
                         vd -= res[n2]
                     vd_last = 0.1
-                    if abs(vd-vd_last) > 0.02*vd_last :
+                    if abs(vd - vd_last) > 0.02 * vd_last:
                         flag = 0
                 else:
                     vd = res[n1]
@@ -334,28 +408,124 @@ def diode_analysis(d_list, MNA_base, RHS_base, rows):
                     if n2 >= 0:
                         vd -= res[n2]
                         vd_last -= res_last[n2]
-                    if abs(vd-vd_last) > 0.02*vd_last :
+                    if abs(vd - vd_last) > 0.02 * vd_last:
                         flag = 0
-                G0 = 40*math.exp(40*vd)
-                I0 = -G0*vd + math.exp(40*vd) - 1
-                MNA_diode[n1, n1] += G0
-                RHS_diode[n1] += -I0
+                G0 = 40 * math.exp(40 * vd)
+                I0 = -G0 * vd + math.exp(40 * vd) - 1
+                MNA_nonlinear[n1, n1] += G0
+                RHS_nonlinear[n1] += -I0
                 if n2 >= 0:
-                    MNA_diode[n1, n2] += -G0
-                    MNA_diode[n2, n1] += -G0
-                    MNA_diode[n2, n2] += G0
-                    RHS_diode[n2] += I0
-                MNA_diode += MNA_base
-                RHS_diode = map(lambda (a, b): a + b, zip(RHS_diode, RHS_base))
+                    MNA_nonlinear[n1, n2] += -G0
+                    MNA_nonlinear[n2, n1] += -G0
+                    MNA_nonlinear[n2, n2] += G0
+                    RHS_nonlinear[n2] += I0
+
+            for mos_element in mos_list:
+                drain_node = mos_element['drain'] - 1
+                source_node = mos_element['source'] - 1
+                gate_node = mos_element['gate'] - 1
+                # body_node = mos_element['body'] - 1
+                width = mos_element['width']
+                length = mos_element['length']
+
+                if times == 1:
+                    if mos_element['model_name'] == 'nmos':
+                        vgs = 0
+                    else:
+                        vgs = -1.8
+                    vds = 0
+                    flag = 0
+                else:
+                    vgs = res[gate_node]
+                    vds = res[drain_node]
+                    if source_node >= 0:
+                        vgs -= res[source_node]
+                        vds -= res[source_node]
+                    if times == 2:
+                        vgs_last = 0.7
+                        vds_last = 0
+                    else:
+                        vgs_last = res_last[gate_node]
+                        vds_last = res_last[drain_node]
+                        if source_node >= 0:
+                            vgs_last -= res_last[source_node]
+                            vds_last -= res_last[source_node]
+
+                    if (abs(vgs - vgs_last) > 0.02 * abs(vgs_last)) or (abs(vds - vds_last) > 0.02 * abs(vds_last)):
+                        flag = 0
+
+                if mos_element['model_name'] == 'nmos':
+                    vt0 = 0.43
+                    # gamma = 0.4
+                    # phi = 0.6
+                    k = 1.15e-4
+                    Lambda = 0.06
+                    vov = vgs - vt0
+                    if vov > 0:
+                        if (vds <= vov) and (vds > 0):
+                            ids = k * (vov * vds - 0.5 * vds * vds) * (1 + Lambda * vds) * width / length
+                            gm = k * vds * (1 + Lambda * vds) * width / length
+                            gds = k * (vov + (2 * Lambda * vov - 1) * vds - 1.5 * Lambda * vds * vds) * width / length
+                        elif vds > vov:
+                            ids = 0.5 * k * vov * vov * (1 + Lambda * vds) * width / length
+                            gm = k * vds * vov * width / length
+                            gds = Lambda * ids
+                        else:
+                            ids = k * (vov * vds - 0.5 * vds * vds) * width / length
+                            gm = k * vds * width / length
+                            gds = k * (vov - vds) * width / length
+                    else:
+                        ids = 0
+                        gm = 0
+                        gds = 0
+                else:
+                    vt0 = -0.4
+                    # gamma = -0.4
+                    # phi = 0.6
+                    k = -3.0e-5
+                    Lambda = -0.1
+                    vov = vgs - vt0
+                    if vov < 0:
+                        if (vds >= vov) and (vds < 0):
+                            ids = k * (vov * vds - 0.5 * vds * vds) * (1 + Lambda * vds) * width / length
+                            gm = k * vds * (1 + Lambda * vds) * width / length
+                            gds = k * (vov + (2 * Lambda * vov - 1) * vds - 1.5 * Lambda * vds * vds) * width / length
+                        elif vds < vov:
+                            ids = 0.5 * k * vov * vov * (1 + Lambda * vds) * width / length
+                            gm = k * vds * vov * width / length
+                            gds = Lambda * ids
+                        else:
+                            ids = k * (vov * vds - 0.5 * vds * vds) * width / length
+                            gm = k * vds * width / length
+                            gds = k * (vov - vds) * width / length
+                    else:
+                        ids = 0
+                        gm = 0
+                        gds = 0
+
+                I0 = ids - gm * vgs - gds * vds
+                MNA_nonlinear[drain_node, drain_node] += gds
+                MNA_nonlinear[drain_node, gate_node] += gm
+                RHS_nonlinear[drain_node] += -I0
+                if source_node >= 0:
+                    MNA_nonlinear[drain_node, source_node] += -gds - gm
+                    MNA_nonlinear[source_node, source_node] += gds + gm
+                    MNA_nonlinear[source_node, drain_node] += -gds
+                    MNA_nonlinear[source_node, gate_node] += -gm
+                    RHS_nonlinear[source_node] += I0
+
             if flag == 1:
                 print "final results:", res
                 break
+
+            MNA_nonlinear += MNA_base
+            RHS_nonlinear = map(lambda (a, b): a + b, zip(RHS_nonlinear, RHS_base))
             if times > 1:
                 res_last = res
-            res = list(np.linalg.solve(MNA_diode, RHS_diode))
+            res = list(np.linalg.solve(MNA_nonlinear, RHS_nonlinear))
             print "times:", times
-            print "MNA:", MNA_diode
-            print "RHS:", RHS_diode
+            print "MNA:", MNA_nonlinear
+            print "RHS:", RHS_nonlinear
             print "results:", res
             times += 1
     return res
