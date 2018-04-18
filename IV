@@ -1,0 +1,8 @@
+*simple inv for dc sweep
+vin 1 0 1.8
+vcc 3 0 1.8
+mn1 2 1 0 0 nmos w=2u l=1u
+mp1 2 1 3 3 pmos w=4u l=1u
+.dc vin 0 1.8 0.02
+.print dc V(2)
+.END

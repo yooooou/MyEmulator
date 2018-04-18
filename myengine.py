@@ -99,6 +99,170 @@ def dc_stamp(col_normal, MNA_dc, RHS_dc, RHS_ac, v_list, i_list, d_list, mos_lis
 
     return nonlinear_analysis(d_list, mos_list, MNA_dc, RHS_dc, rows)
 
+def dc_sweep(control_command, MNA_dc, v_list, i_list, dc_sweep_list, dc_2srcs_res_list,dc_2srcs_sweep_list,
+             rows, col_normal, d_list, mos_list, src2_name):
+    src1_n1 = 0
+    src1_n2 = 0
+    src1_br = 0
+    RHS_base = [0] * rows
+    src1 = control_command[1]
+    src1_start = control_command[2]
+    src1_cur_value = src1_start
+    src1_end = control_command[3]
+    src1_step = control_command[4]
+    dc_res_list = []
+
+    if len(control_command) == 5:                 # one src
+        for vsrc in v_list:
+            if vsrc['name'] !=src1 :
+                br = vsrc['branch_info'] + col_normal - 1
+                RHS_base[br] = vsrc['dc_value']
+            else:
+                src1_br = vsrc['branch_info'] + col_normal - 1
+        for isrc in i_list:
+            if isrc['name'] !=src1:
+                n1 = isrc['node+'] - 1
+                n2 = isrc['node-'] - 1
+                if n1 < 0:
+                    RHS_base[n2] += isrc['dc_value']
+                else:
+                    RHS_base[n1] += -isrc['dc_value']
+                    if n2 >= 0:
+                        RHS_base[n2] += isrc['dc_value']
+            else:
+                src1_n1 = isrc['node+'] - 1
+                src1_n2 = isrc['node-'] - 1
+                
+        if src1[0] == "v":
+            while src1_cur_value <= src1_end:
+                RHS_dc_sweep = [0] * rows
+                RHS_dc_sweep[src1_br] += src1_cur_value
+                RHS_dc_sweep = map(lambda (a, b): a + b, zip(RHS_dc_sweep, RHS_base))
+                dc_res_list.append(nonlinear_analysis(d_list,mos_list,MNA_dc,RHS_dc_sweep,rows))
+                dc_sweep_list.append(src1_cur_value)
+                src1_cur_value += src1_step
+        else:
+            while src1_cur_value <= src1_end:
+                RHS_dc_sweep = [0] * rows
+                if src1_n1 < 0:
+                    RHS_dc_sweep[src1_n2] += src1_cur_value
+                else:
+                    RHS_dc_sweep[src1_n1] += - src1_cur_value
+                    if src1_n2 >= 0:
+                        RHS_dc_sweep[src1_n2] += src1_cur_value
+                RHS_dc_sweep = map(lambda (a, b): a + b, zip(RHS_dc_sweep, RHS_base))
+                dc_res_list.append(nonlinear_analysis(d_list, mos_list, MNA_dc, RHS_dc_sweep, rows))
+                dc_sweep_list.append(src1_cur_value)
+                src1_cur_value += src1_step
+        dc_2srcs_res_list.append(dc_res_list)
+    else:                                         # 2 srcs
+        src2_n1 = 0
+        src2_n2 = 0
+        src2_br = 0
+        src2 = control_command[5]
+        src2_cur_value = control_command[6]
+        src2_end = control_command[7]
+        src2_step = control_command[8]
+        src2_name.append(src2)
+        for vsrc in v_list:
+            if vsrc['name'] == src1:
+                src1_br = vsrc['branch_info'] + col_normal - 1
+            elif  vsrc['name'] == src2:
+                src2_br = vsrc['branch_info'] + col_normal - 1
+            else:
+                br = vsrc['branch_info'] + col_normal - 1
+                RHS_base[br] = vsrc['dc_value']
+        for isrc in i_list:
+            if isrc['name'] == src1:
+                src1_n1 = isrc['node+'] - 1
+                src1_n2 = isrc['node-'] - 1
+            elif isrc['name'] == src2:
+                src2_n1 = isrc['node+'] - 1
+                src2_n2 = isrc['node-'] - 1
+            else:
+                n1 = isrc['node+'] - 1
+                n2 = isrc['node-'] - 1
+                if n1 < 0:
+                    RHS_base[n2] += isrc['dc_value']
+                else:
+                    RHS_base[n1] += -isrc['dc_value']
+                    if n2 >= 0:
+                        RHS_base[n2] += isrc['dc_value']
+        if src2[0] == "v":
+            while src2_cur_value <= src2_end:
+                dc_res_list = []
+                src1_cur_value = src1_start
+                if src1[0] == "v":
+                    while src1_cur_value <= src1_end:
+                        RHS_dc_sweep = [0] * rows
+                        RHS_dc_sweep[src1_br] += src1_cur_value
+                        RHS_dc_sweep[src2_br] += src2_cur_value
+                        RHS_dc_sweep = map(lambda (a, b): a + b, zip(RHS_dc_sweep, RHS_base))
+                        dc_res_list.append(nonlinear_analysis(d_list, mos_list, MNA_dc, RHS_dc_sweep, rows))
+                        if src2_cur_value == control_command[6]:
+                            dc_sweep_list.append(src1_cur_value)
+                        src1_cur_value += src1_step
+                else:
+                    while src1_cur_value <= src1_end:
+                        RHS_dc_sweep = [0] * rows
+                        RHS_dc_sweep[src2_br] += src2_cur_value
+                        if src1_n1 < 0:
+                            RHS_dc_sweep[src1_n2] += src1_cur_value
+                        else:
+                            RHS_dc_sweep[src1_n1] += - src1_cur_value
+                            if src1_n2 >= 0:
+                                RHS_dc_sweep[src1_n2] += src1_cur_value
+                        RHS_dc_sweep = map(lambda (a, b): a + b, zip(RHS_dc_sweep, RHS_base))
+                        dc_res_list.append(nonlinear_analysis(d_list, mos_list, MNA_dc, RHS_dc_sweep, rows))
+                        dc_sweep_list.append(src1_cur_value)
+                        if src2_cur_value == control_command[6]:
+                            dc_sweep_list.append(src1_cur_value)
+                dc_2srcs_res_list.append(dc_res_list)
+                dc_2srcs_sweep_list.append(src2_cur_value)
+                src2_cur_value += src2_step
+
+        else:
+            while src2_cur_value <= src2_end:
+                dc_res_list = []
+                src1_cur_value = src1_start
+                if src1[0] == "v":
+                    while src1_cur_value <= src1_end:
+                        RHS_dc_sweep = [0] * rows
+                        RHS_dc_sweep[src1_br] += src1_cur_value
+                        if src2_n1 < 0:
+                            RHS_dc_sweep[src2_n2] += src2_cur_value
+                        else:
+                            RHS_dc_sweep[src2_n1] += - src2_cur_value
+                            if src2_n2 >= 0:
+                                RHS_dc_sweep[src2_n2] += src2_cur_value
+                        RHS_dc_sweep = map(lambda (a, b): a + b, zip(RHS_dc_sweep, RHS_base))
+                        dc_res_list.append(nonlinear_analysis(d_list, mos_list, MNA_dc, RHS_dc_sweep, rows))
+                        if src2_cur_value == control_command[6]:
+                            dc_sweep_list.append(src1_cur_value)
+                        src1_cur_value += src1_step
+                else:
+                    while src1_cur_value <= src1_end:
+                        RHS_dc_sweep = [0] * rows
+                        if src1_n1 < 0:
+                            RHS_dc_sweep[src1_n2] += src1_cur_value
+                        else:
+                            RHS_dc_sweep[src1_n1] += - src1_cur_value
+                            if src1_n2 >= 0:
+                                RHS_dc_sweep[src1_n2] += src1_cur_value
+                        if src2_n1 < 0:
+                            RHS_dc_sweep[src2_n2] += src2_cur_value
+                        else:
+                            RHS_dc_sweep[src2_n1] += - src2_cur_value
+                            if src2_n2 >= 0:
+                                RHS_dc_sweep[src2_n2] += src2_cur_value
+                        RHS_dc_sweep = map(lambda (a, b): a + b, zip(RHS_dc_sweep, RHS_base))
+                        dc_res_list.append(nonlinear_analysis(d_list, mos_list, MNA_dc, RHS_dc_sweep, rows))
+                        if src2_cur_value == control_command[6]:
+                            dc_sweep_list.append(src1_cur_value)
+                        src1_cur_value += src1_step
+                dc_2srcs_res_list.append(dc_res_list)
+                dc_2srcs_sweep_list.append(src2_cur_value)
+                src2_cur_value += src2_step
 
 def ac_sweep(rows, col_normal, c_list, l_list, MNA_dc, RHS_ac, points, step, ac_res_list, omega_list, start, type):
     for i in range(points):
@@ -189,7 +353,7 @@ def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
         br_l = col_normal + l_element[-1] - 1
         MNA_tran[br_l, br_l] += -(2.0 * l_element[3]) / tmax
 
-    print ("tmax:%e s" % tmax)
+    # print ("tmax:%e s" % tmax)
     print ("print step:%e s" % tstep_print)
     print "MNA_tran:", MNA_tran
 
@@ -336,8 +500,8 @@ def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
             n1 = isrc['node+'] - 1
             n2 = isrc['node-'] - 1
             if n1 < 0:
-                if (vsrc['tran_type'] == "non"):
-                    value_plus += vsrc['dc_value']
+                if (isrc['tran_type'] == "non"):
+                    value_plus += isrc['dc_value']
                 if (isrc['tran_type'] == "sin"):
                     value_plus = isrc['dc_value'] + isrc['tran_mag'] * math.sin(pi2 * isrc['tran_freq'] * time)
                 if (isrc['tran_type'] == "pulse"):
@@ -375,7 +539,7 @@ def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
 
 
 def nonlinear_analysis(d_list, mos_list, MNA_base, RHS_base, rows):
-    if len(d_list) == 0 and len(mos_list) == 0:
+    if (len(d_list) == 0 )and (len(mos_list) == 0):
         print "linear"
         print "MNA:", MNA_base
         print "RHS:", RHS_base
@@ -389,130 +553,132 @@ def nonlinear_analysis(d_list, mos_list, MNA_base, RHS_base, rows):
             flag = 1
             MNA_nonlinear = np.zeros((rows, rows))
             RHS_nonlinear = [0] * rows
-            for d_element in d_list:
-                n1 = d_element[1] - 1
-                n2 = d_element[2] - 1
-                if times == 1:
-                    vd = 0.1
-                    flag = 0
-                elif times == 2:
-                    vd = res[n1]
-                    if n2 >= 0:
-                        vd -= res[n2]
-                    vd_last = 0.1
-                    if abs(vd - vd_last) > 0.02 * vd_last:
+            if len(d_list) != 0:
+                for d_element in d_list:
+                    n1 = d_element[1] - 1
+                    n2 = d_element[2] - 1
+                    if times == 1:
+                        vd = 0.1
                         flag = 0
-                else:
-                    vd = res[n1]
-                    vd_last = res_last[n1]
+                    elif times == 2:
+                        vd = res[n1]
+                        if n2 >= 0:
+                            vd -= res[n2]
+                        vd_last = 0.1
+                        if abs(vd - vd_last) > 0.02 * abs(vd_last):
+                            flag = 0
+                    else:
+                        vd = res[n1]
+                        vd_last = res_last[n1]
+                        if n2 >= 0:
+                            vd -= res[n2]
+                            vd_last -= res_last[n2]
+                        if abs(vd - vd_last) > 0.02 * abs(vd_last):
+                            flag = 0
+                    G0 = 40 * math.exp(40 * vd)
+                    I0 = -G0 * vd + math.exp(40 * vd) - 1
+                    MNA_nonlinear[n1, n1] += G0
+                    RHS_nonlinear[n1] += -I0
                     if n2 >= 0:
-                        vd -= res[n2]
-                        vd_last -= res_last[n2]
-                    if abs(vd - vd_last) > 0.02 * vd_last:
+                        MNA_nonlinear[n1, n2] += -G0
+                        MNA_nonlinear[n2, n1] += -G0
+                        MNA_nonlinear[n2, n2] += G0
+                        RHS_nonlinear[n2] += I0
+
+            if len(mos_list) != 0:
+                for mos_element in mos_list:
+                    drain_node = mos_element['drain'] - 1
+                    source_node = mos_element['source'] - 1
+                    gate_node = mos_element['gate'] - 1
+                    # body_node = mos_element['body'] - 1
+                    width = mos_element['width']
+                    length = mos_element['length']
+
+                    if times == 1:
+                        if mos_element['model_name'] == 'nmos':
+                            vgs = 0
+                        else:
+                            vgs = -1.8
+                        vds = 0
                         flag = 0
-                G0 = 40 * math.exp(40 * vd)
-                I0 = -G0 * vd + math.exp(40 * vd) - 1
-                MNA_nonlinear[n1, n1] += G0
-                RHS_nonlinear[n1] += -I0
-                if n2 >= 0:
-                    MNA_nonlinear[n1, n2] += -G0
-                    MNA_nonlinear[n2, n1] += -G0
-                    MNA_nonlinear[n2, n2] += G0
-                    RHS_nonlinear[n2] += I0
-
-            for mos_element in mos_list:
-                drain_node = mos_element['drain'] - 1
-                source_node = mos_element['source'] - 1
-                gate_node = mos_element['gate'] - 1
-                # body_node = mos_element['body'] - 1
-                width = mos_element['width']
-                length = mos_element['length']
-
-                if times == 1:
-                    if mos_element['model_name'] == 'nmos':
-                        vgs = 0
                     else:
-                        vgs = -1.8
-                    vds = 0
-                    flag = 0
-                else:
-                    vgs = res[gate_node]
-                    vds = res[drain_node]
-                    if source_node >= 0:
-                        vgs -= res[source_node]
-                        vds -= res[source_node]
-                    if times == 2:
-                        vgs_last = 0.7
-                        vds_last = 0
-                    else:
-                        vgs_last = res_last[gate_node]
-                        vds_last = res_last[drain_node]
+                        vgs = res[gate_node]
+                        vds = res[drain_node]
                         if source_node >= 0:
-                            vgs_last -= res_last[source_node]
-                            vds_last -= res_last[source_node]
-
-                    if (abs(vgs - vgs_last) > 0.02 * abs(vgs_last)) or (abs(vds - vds_last) > 0.02 * abs(vds_last)):
-                        flag = 0
-
-                if mos_element['model_name'] == 'nmos':
-                    vt0 = 0.43
-                    # gamma = 0.4
-                    # phi = 0.6
-                    k = 1.15e-4
-                    Lambda = 0.06
-                    vov = vgs - vt0
-                    if vov > 0:
-                        if (vds <= vov) and (vds > 0):
-                            ids = k * (vov * vds - 0.5 * vds * vds) * (1 + Lambda * vds) * width / length
-                            gm = k * vds * (1 + Lambda * vds) * width / length
-                            gds = k * (vov + (2 * Lambda * vov - 1) * vds - 1.5 * Lambda * vds * vds) * width / length
-                        elif vds > vov:
-                            ids = 0.5 * k * vov * vov * (1 + Lambda * vds) * width / length
-                            gm = k * vds * vov * width / length
-                            gds = Lambda * ids
+                            vgs -= res[source_node]
+                            vds -= res[source_node]
+                        if times == 2:
+                            vgs_last = 0.7
+                            vds_last = 0
                         else:
-                            ids = k * (vov * vds - 0.5 * vds * vds) * width / length
-                            gm = k * vds * width / length
-                            gds = k * (vov - vds) * width / length
-                    else:
-                        ids = 0
-                        gm = 0
-                        gds = 0
-                else:
-                    vt0 = -0.4
-                    # gamma = -0.4
-                    # phi = 0.6
-                    k = -3.0e-5
-                    Lambda = -0.1
-                    vov = vgs - vt0
-                    if vov < 0:
-                        if (vds >= vov) and (vds < 0):
-                            ids = k * (vov * vds - 0.5 * vds * vds) * (1 + Lambda * vds) * width / length
-                            gm = k * vds * (1 + Lambda * vds) * width / length
-                            gds = k * (vov + (2 * Lambda * vov - 1) * vds - 1.5 * Lambda * vds * vds) * width / length
-                        elif vds < vov:
-                            ids = 0.5 * k * vov * vov * (1 + Lambda * vds) * width / length
-                            gm = k * vds * vov * width / length
-                            gds = Lambda * ids
-                        else:
-                            ids = k * (vov * vds - 0.5 * vds * vds) * width / length
-                            gm = k * vds * width / length
-                            gds = k * (vov - vds) * width / length
-                    else:
-                        ids = 0
-                        gm = 0
-                        gds = 0
+                            vgs_last = res_last[gate_node]
+                            vds_last = res_last[drain_node]
+                            if source_node >= 0:
+                                vgs_last -= res_last[source_node]
+                                vds_last -= res_last[source_node]
 
-                I0 = ids - gm * vgs - gds * vds
-                MNA_nonlinear[drain_node, drain_node] += gds
-                MNA_nonlinear[drain_node, gate_node] += gm
-                RHS_nonlinear[drain_node] += -I0
-                if source_node >= 0:
-                    MNA_nonlinear[drain_node, source_node] += -gds - gm
-                    MNA_nonlinear[source_node, source_node] += gds + gm
-                    MNA_nonlinear[source_node, drain_node] += -gds
-                    MNA_nonlinear[source_node, gate_node] += -gm
-                    RHS_nonlinear[source_node] += I0
+                        if (abs(vgs - vgs_last) > 0.02 * abs(vgs_last)) or (abs(vds - vds_last) > 0.02 * abs(vds_last)):
+                            flag = 0
+
+                    if mos_element['model_name'] == 'nmos':
+                        vt0 = 0.43
+                        # gamma = 0.4
+                        # phi = 0.6
+                        k = 1.15e-4
+                        Lambda = 0.06
+                        vov = vgs - vt0
+                        if vov > 0:
+                            if (vds <= vov) and (vds > 0):
+                                ids = k * (vov * vds - 0.5 * vds * vds) * (1 + Lambda * vds) * width / length
+                                gm = k * vds * (1 + Lambda * vds) * width / length
+                                gds = k * (vov + (2 * Lambda * vov - 1) * vds - 1.5 * Lambda * vds * vds) * width / length
+                            elif vds > vov:
+                                ids = 0.5 * k * vov * vov * (1 + Lambda * vds) * width / length
+                                gm = k * vds * vov * width / length
+                                gds = Lambda * ids
+                            else:
+                                ids = k * (vov * vds - 0.5 * vds * vds) * width / length
+                                gm = k * vds * width / length
+                                gds = k * (vov - vds) * width / length
+                        else:
+                            ids = 0
+                            gm = 0
+                            gds = 0
+                    else:
+                        vt0 = -0.4
+                        # gamma = -0.4
+                        # phi = 0.6
+                        k = -3.0e-5
+                        Lambda = -0.1
+                        vov = vgs - vt0
+                        if vov < 0:
+                            if (vds >= vov) and (vds < 0):
+                                ids = k * (vov * vds - 0.5 * vds * vds) * (1 + Lambda * vds) * width / length
+                                gm = k * vds * (1 + Lambda * vds) * width / length
+                                gds = k * (vov + (2 * Lambda * vov - 1) * vds - 1.5 * Lambda * vds * vds) * width / length
+                            elif vds < vov:
+                                ids = 0.5 * k * vov * vov * (1 + Lambda * vds) * width / length
+                                gm = k * vds * vov * width / length
+                                gds = Lambda * ids
+                            else:
+                                ids = k * (vov * vds - 0.5 * vds * vds) * width / length
+                                gm = k * vds * width / length
+                                gds = k * (vov - vds) * width / length
+                        else:
+                            ids = 0
+                            gm = 0
+                            gds = 0
+
+                    I0 = ids - gm * vgs - gds * vds
+                    MNA_nonlinear[drain_node, drain_node] += gds
+                    MNA_nonlinear[drain_node, gate_node] += gm
+                    RHS_nonlinear[drain_node] += -I0
+                    if source_node >= 0:
+                        MNA_nonlinear[drain_node, source_node] += -gds - gm
+                        MNA_nonlinear[source_node, source_node] += gds + gm
+                        MNA_nonlinear[source_node, drain_node] += -gds
+                        MNA_nonlinear[source_node, gate_node] += -gm
+                        RHS_nonlinear[source_node] += I0
 
             if flag == 1:
                 print "final results:", res

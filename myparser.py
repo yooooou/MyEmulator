@@ -68,7 +68,7 @@ def line_parser(line, col_br_list, l_list, c_list, element_list, v_list, i_list,
     col_normal= col_br_list[0]
     branch = col_br_list[1]
     branch_c = col_br_list[2]
-    line_elements = re.split(r'[=\s()]+', line)  # extract line elements separated by spaces "=" "(" ")"
+    line_elements = re.split(r'[=\s(),]+', line)  # extract line elements separated by spaces "=" "(" ")"
     if line[0] == "*":
         print "comment line:", line
     # elif line[0] in ["r","c","l","d","m","v","i","e","f","g","h","s"]:
@@ -198,13 +198,10 @@ def line_parser(line, col_br_list, l_list, c_list, element_list, v_list, i_list,
 
     elif line[0] == ".":
         line_elements[0] = line_elements[0].replace(".", "")
-        if line_elements[0] != "model":
-            if line_elements[0] == "ac":
-                for i in range(2, 5):
-                    line_elements[i] = str2num(line_elements[i])
-            if line_elements[0] == "tran":
-                for i in range(1,len(line_elements)):
-                    line_elements[i] = str2num(line_elements[i])
+        if line_elements[0] != "model" :    #.dc .ac .tran
+            for i in range(1,len(line_elements)):
+                try:line_elements[i] = str2num(line_elements[i])
+                except ValueError: pass
             control_list += [line_elements]  # save control
         else:
             model_list += [line_elements]  # save model
