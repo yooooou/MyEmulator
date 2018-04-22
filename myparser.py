@@ -73,7 +73,6 @@ def line_parser(line, col_br_list, l_list, c_list, element_list, v_list, i_list,
         print "comment line:", line
     # elif line[0] in ["r","c","l","d","m","v","i","e","f","g","h","s"]:
     elif line[0] in ["r", "c", "v", "l", "i", "d", "m"]:
-
         for i in range(1, 3):
             line_elements[i] = int(line_elements[i])
             if line_elements[i] > col_normal:
@@ -92,6 +91,9 @@ def line_parser(line, col_br_list, l_list, c_list, element_list, v_list, i_list,
                 if "ac" in line_elements:
                     index_ac = line_elements.index("ac")
                     v_dict['ac_mag'] = str2num(line_elements[index_ac+1])
+                    try: v_dict['ac_phase'] = str2num(line_elements[index_ac+2])
+                    except ValueError : pass
+                    except IndexError : pass
                 if "sin" in line_elements:
                     index_sin = line_elements.index("sin")
                     v_dict["tran_type"] = "sin"
@@ -123,6 +125,9 @@ def line_parser(line, col_br_list, l_list, c_list, element_list, v_list, i_list,
                 if "ac" in line_elements:
                     index_ac = line_elements.index("ac")
                     i_dict['ac_mag'] = str2num(line_elements[index_ac+1])
+                    try:i_dict['ac_phase'] = str2num(line_elements[index_ac+2])
+                    except ValueError : pass
+                    except IndexError : pass
                 if "sin" in line_elements:
                     index_sin = line_elements.index("sin")
                     i_dict["tran_type"] = "sin"
@@ -220,10 +225,12 @@ if __name__ == '__main__':
     d_list = []
     control_list = []
     model_list = []
+    mos_list = []
     line = file_handle.readline().strip().lower()
     col_br_list = [0,0,0]
     while line != ".end":
-        line_parser(line, col_br_list, l_list, c_list, element_list, v_list, i_list, d_list, control_list, model_list)
+        line_parser(line, col_br_list, l_list, c_list, element_list, v_list, i_list, d_list, mos_list,
+                    control_list, model_list)
         line = file_handle.readline().strip().lower()
         if not line:
             break

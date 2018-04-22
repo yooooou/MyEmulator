@@ -264,7 +264,7 @@ def dc_sweep(control_command, MNA_dc, v_list, i_list, dc_sweep_list, dc_2srcs_re
                 dc_2srcs_sweep_list.append(src2_cur_value)
                 src2_cur_value += src2_step
 
-def ac_sweep(rows, col_normal, c_list, l_list, MNA_dc, RHS_ac, points, step, ac_res_list, omega_list, start, type):
+def ac_sweep(rows, col_normal, c_list, l_list, MNA_dc, RHS_ac, points, step, ac_res_list, freq_list, start, type):
     for i in range(points):
         MNA_ac = np.zeros((rows, rows), complex)
         if type == "lin":
@@ -294,17 +294,17 @@ def ac_sweep(rows, col_normal, c_list, l_list, MNA_dc, RHS_ac, points, step, ac_
         ac_res = np.linalg.solve(MNA_ac, RHS_ac)
         print "ac results:", ac_res
         ac_res_list.append(ac_res)
-        omega_list.append(omega)
+        freq_list.append(freq)
 
 
-def ac_analysis(control_command, rows, col_normal, c_list, l_list, MNA_dc, RHS_ac, ac_res_list, omega_list):
+def ac_analysis(control_command, rows, col_normal, c_list, l_list, MNA_dc, RHS_ac, ac_res_list, freq_list):
     start = control_command[3]
     end = control_command[4]
 
     if control_command[1] == "lin":
         step = (end - start) / (control_command[2] + 1.0)
         ac_sweep(rows, col_normal, c_list, l_list, MNA_dc, RHS_ac, control_command[2] + 2,
-                 step, ac_res_list, omega_list, start, "lin")
+                 step, ac_res_list, freq_list, start, "lin")
 
     elif control_command[1] == "dec":
         dec_start = math.log10(start)
@@ -312,14 +312,14 @@ def ac_analysis(control_command, rows, col_normal, c_list, l_list, MNA_dc, RHS_a
         dec_step = 1 / (control_command[2] + 1.0)
         dec_points = (dec_end - dec_start) * (control_command[2] + 1) + 1
         ac_sweep(rows, col_normal, c_list, l_list, MNA_dc, RHS_ac, int(dec_points),
-                 dec_step, ac_res_list, omega_list, dec_start, "dec")
+                 dec_step, ac_res_list, freq_list, dec_start, "dec")
     else:
         oct_start = math.log(start, 2)
         oct_end = math.log(end, 2)
         oct_step = 1 / (control_command[2] + 1.0)
         oct_points = (oct_end - oct_start) * (control_command[2] + 1) + 1
         ac_sweep(rows, col_normal, c_list, l_list, MNA_dc, RHS_ac, int(oct_points),
-                 oct_step, ac_res_list, omega_list, oct_start, "oct")
+                 oct_step, ac_res_list, freq_list, oct_start, "oct")
 
 
 def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,

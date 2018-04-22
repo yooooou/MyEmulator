@@ -1,8 +1,6 @@
-* SERIES CIRCUIT (title)
-VS 1  0  51
-R1 1 2 12M
-R2 2 3 22MEG
-R3 3 0 33DB
-.DC VS 6 6 1
-.PRINT DC V(2,3) V(2) I(R2)
+* RLC CIRCUIT
+VS 1  0  2 ac 2 sin(0 2.5 1meg)
+R1 1 2 10k
+c1 2 0 1p
+.tran 1ns  50n
 .END

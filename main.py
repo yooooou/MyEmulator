@@ -7,6 +7,7 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 def engine(filename):
     file_handle = open(filename, 'r')
     element_list = []
@@ -52,38 +53,24 @@ def engine(filename):
 
     dc_2srcs_sweep_list = []
     src2 = []
+    ac_swepp_type = []
+    ac_res_list = []
+    freq_list = []
+    dc_src1 = ''
     for control_command in control_list:
         if control_command[0] == 'dc':
             print "****************************dc sweep******************************************"
+            dc_src1 = control_command[1]
             dc_sweep_list = []
-            dc_2srcs_res_list=[]
-            myengine.dc_sweep(control_command,MNA_dc,v_list,i_list,dc_sweep_list, dc_2srcs_res_list,
-                              dc_2srcs_sweep_list,rows,col_normal,d_list,mos_list,src2)
+            dc_2srcs_res_list = []
+            myengine.dc_sweep(control_command, MNA_dc, v_list, i_list, dc_sweep_list, dc_2srcs_res_list,
+                              dc_2srcs_sweep_list, rows, col_normal, d_list, mos_list, src2)
         if control_command[0] == 'ac':
             print "****************************ac analysis***************************************"
-            ac_res_list = []
-            omega_list = []
+            ac_swepp_type = control_command[1]
             print "RHS_ac:", RHS_ac
             myengine.ac_analysis(control_command, rows, col_normal, c_list, l_list, MNA_dc,
-                                 RHS_ac, ac_res_list, omega_list)
-            plot_amplitude = []
-            plot_phase = []
-            f_list = []
-            for v12 in ac_res_list:
-                v_1_2 = v12[0] - v12[1]
-                # amplitude = 20*math.log10(abs(v_1_2))
-                amplitude = abs(v_1_2)
-                # print amplitude
-                phase = 180 * math.atan2(v_1_2.imag, v_1_2.real) / math.pi
-                plot_amplitude.append(amplitude)
-                plot_phase.append(phase)
-            for omega in omega_list:
-                f_list.append(math.log10(omega / (2 * math.pi)))
-            plt.subplot(2, 1, 1)
-            plt.plot(f_list, plot_amplitude)
-            plt.subplot(2, 1, 2)
-            plt.plot(f_list, plot_phase)
-            plt.show()
+                                 RHS_ac, ac_res_list, freq_list)
         if control_command[0] == "tran":
             print "****************************tran analysis***************************************"
             tran_rows = rows + branch_c
@@ -98,110 +85,260 @@ def engine(filename):
             time_list = []
             myengine.tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list, c_list, l_list,
                                    v_list, i_list, d_list, mos_list, time_list, rows, col_normal, tran_rows)
-            # plot_voltage_o = []
-            # plot_voltage_i = []
-            # for v2 in tran_print_list:
-            #     plot_voltage_o.append(v2[1])
-            #     plot_voltage_i.append(v2[0])
-            # plt.subplot(2, 1, 1)
-            # plt.plot(time_list, plot_voltage_i)
-            # plt.subplot(2, 1, 2)
-            # plt.plot(time_list, plot_voltage_o)
-            # plt.show()
-    for control_command in control_list:
-        if "print" in control_command:
+
+    fignum = 0
+    for control_command in control_list:  # plot & print
+        if control_command[0] == 'print':
             if control_command[1] == 'dc':
-                for i in range(2,len(control_command)):
+                for i in range(2, len(control_command)):
                     if control_command[i] == "v":
-                        # if(control_command[i+2]!="v") and (control_command[i+2]!="i"):
-                        #     for v_plot in dc_res_list:
-                        #         plot_voltage.append(v_plot[control_command[i+1]-1]-v_plot[control_command[i+2]-1])
-                        #     plt.plot(dc_sweep_list,plot_voltage)
-                        # else:
+                        fignum += 1
+                        plt.figure(fignum)
+                        plt.ylabel("V(V)")
+                        plot_voltage = []
+                        node2 = 0
+                        try:
+                            node2 = int(control_command[i + 2])
+                        except ValueError:
+                            pass
+                        except IndexError:
+                            pass
                         if len(dc_2srcs_res_list) == 1:
-                            plot_voltage = []
+                            if node2 != 0:
+                                plot_label = 'V' + '(' + str(control_command[i + 1]) + ',' + str(node2) + ')'
+                            else:
+                                plot_label = 'V' + '(' + str(control_command[i + 1]) + ')'
                             for v_plot in dc_2srcs_res_list[0]:
-                                plot_voltage.append(v_plot[control_command[i+1]-1])
-                            plt.plot(dc_sweep_list,plot_voltage,label='v'+'('+str(control_command[i+1])+')')
-                            plt.title("DC Transfer")
-                            plt.ylabel("V(V)")
-                            plt.xlabel("V(V)")
-                            plt.legend(loc='best')
+                                if node2 != 0:
+                                    plot_voltage.append(v_plot[control_command[i + 1] - 1] - v_plot[node2 - 1])
+                                else:
+                                    plot_voltage.append(v_plot[control_command[i + 1] - 1])
+                            plt.plot(dc_sweep_list, plot_voltage, label=plot_label)
                         else:
                             for i in range(len(dc_2srcs_res_list)):
                                 plot_voltage = []
                                 for v_plot in dc_2srcs_res_list[i]:
-                                    plot_voltage.append(v_plot[control_command[i + 1] - 1])
+                                    if node2 != 0:
+                                        plot_voltage.append(v_plot[control_command[i + 1] - 1] - v_plot[node2 - 1])
+                                    else:
+                                        plot_voltage.append(v_plot[control_command[i + 1] - 1])
                                 plt.plot(dc_sweep_list, plot_voltage,
-                                         label= src2[0]+ '='+str(dc_2srcs_sweep_list[i]))
-                                plt.title("DC Transfer")
-                                plt.ylabel("V(V)")
-                                plt.xlabel("V(V)")
-                                plt.legend(loc='best')
+                                         label=src2[0] + '=' + str(dc_2srcs_sweep_list[i]))
 
                     elif control_command[i] == "i":
+                        fignum += 1
+                        plt.figure(fignum)
+                        plt.ylabel("I(A)")
+                        plot_i = []
                         for vsrc_match in v_list:
                             if vsrc_match['name'] == control_command[i + 1]:
                                 if len(dc_2srcs_res_list) == 1:
-                                    plot_i = []
                                     for i_plot in dc_2srcs_res_list[0]:
-                                        plot_i.append(-i_plot[vsrc_match['branch_info']+col_normal - 1])
-                                    plt.plot(dc_sweep_list, plot_i,label='i'+'('+vsrc_match['name']+')')
-                                    plt.title("DC Transfer")
-                                    plt.ylabel("I(A)")
-                                    plt.xlabel("V(V)")
-                                    plt.legend(loc='best')
+                                        plot_i.append(i_plot[vsrc_match['branch_info'] + col_normal - 1])
+                                    plt.plot(dc_sweep_list, plot_i, label='i' + '(' + vsrc_match['name'] + ')')
                                     break
                                 else:
                                     for i in range(len(dc_2srcs_res_list)):
                                         plot_i = []
                                         for i_plot in dc_2srcs_res_list[i]:
-                                            plot_i.append(-i_plot[vsrc_match['branch_info']+col_normal - 1])
-                                        print"plot_i", plot_i
-                                        print"points_ploti", len(plot_i)
-                                        print"dc_sweep_list",dc_sweep_list
-                                        print"points_sweep", len(dc_sweep_list)
+                                            plot_i.append(-i_plot[vsrc_match['branch_info'] + col_normal - 1])
                                         plt.plot(dc_sweep_list, plot_i,
-                                                 label= src2[0]+ '='+str(dc_2srcs_sweep_list[i]))
-                                        plt.title("DC Transfer")
-                                        plt.ylabel("I(A)")
-                                        plt.xlabel("V(V)")
-                                        plt.legend(loc='best')
+                                                 label=src2[0] + '=' + str(dc_2srcs_sweep_list[i]))
                                     break
-
                     else:
                         pass
+
+                    if dc_src1[0] == 'v':
+                        plt.xlabel(dc_src1 + "(V)")
+                    elif dc_src1[0] == 'i':
+                        plt.xlabel(dc_src1 + "(A)")
+                    plt.title("DC Transfer")
+                    plt.autoscale()
+                    plt.legend(loc='best')
             elif control_command[1] == 'tran':
-                for i in range(2,len(control_command)):
+                for i in range(2, len(control_command)):
                     if control_command[i] == "v":
-                        plot_voltage = []
-                        # if(control_command[i+2]!="v") and (control_command[i+2]!="i"):
-                        #     for v_plot in dc_res_list:
-                        #         plot_voltage.append(v_plot[control_command[i+1]-1]-v_plot[control_command[i+2]-1])
-                        #     plt.plot(dc_sweep_list,plot_voltage)
-                        # else:
-                        for v_plot in tran_print_list:
-                            plot_voltage.append(v_plot[control_command[i+1]-1])
-                        plt.plot(time_list,plot_voltage,label='v'+'('+str(control_command[i+1])+')')
-                        plt.title("Transient Analysis")
+                        fignum += 1
+                        plt.figure(fignum)
                         plt.ylabel("V(V)")
-                        plt.xlabel("t(S)")
-                        plt.legend(loc='best')
+                        plot_voltage = []
+                        node2 = 0
+                        try:
+                            node2 = int(control_command[i + 2])
+                        except ValueError:
+                            pass
+                        except IndexError:
+                            pass
+                        if node2 != 0:
+                            plot_label = 'V' + '(' + str(control_command[i + 1]) + ',' + str(node2) + ')'
+                        else:
+                            plot_label = 'V' + '(' + str(control_command[i + 1]) + ')'
+                        for v_plot in tran_print_list:
+                            if node2 != 0:
+                                plot_voltage.append(v_plot[control_command[i + 1] - 1] - v_plot[node2 - 1])
+                            else:
+                                plot_voltage.append(v_plot[control_command[i + 1] - 1])
+                        plt.plot(time_list, plot_voltage, label=plot_label)
+
                     elif control_command[i] == "i":
+                        fignum += 1
+                        plt.figure(fignum)
+                        plt.ylabel("I(A)")
                         plot_i = []
-                        for vsrc_match in v_list:
+                        for vsrc_match in i_list:
                             if vsrc_match['name'] == control_command[i + 1]:
                                 for i_plot in tran_print_list:
-                                    plot_i.append(-i_plot[vsrc_match['branch_info']+col_normal - 1])
-                                plt.plot(time_list, plot_i,label='i'+'('+vsrc_match['name']+')')
-                                plt.title("Transient Analysis")
+                                    plot_i.append(i_plot[vsrc_match['branch_info'] + col_normal - 1])
+                                plt.plot(time_list, plot_i, label='i' + '(' + vsrc_match['name'] + ')')
                                 plt.ylabel("I(A)")
-                                plt.xlabel("t(S)")
-                                plt.legend(loc='best')
                                 break
                     else:
                         pass
+                    plt.title("Transient Analysis")
+                    plt.xlabel("t(S)")
+                    plt.autoscale()
+                    plt.legend(loc='best')
+            elif control_command[1] == 'ac':
+                for i in range(2, len(control_command)):
+                    if 'v' in str(control_command[i]):
+                        fignum += 1
+                        plt.figure(fignum)
+                        plot_voltage = []
+                        node2 = 0
+                        try:
+                            node2 = int(control_command[i + 2])
+                        except ValueError:
+                            pass
+                        except IndexError:
+                            pass
+                        if control_command[i] == 'vr':  # real
+                            plt.ylabel("V.real(V)")
+                            if node2 != 0:
+                                plot_label = 'VR' + '(' + str(control_command[i + 1]) + ',' + str(node2) + ')'
+                            else:
+                                plot_label = 'VR' + '(' + str(control_command[i + 1]) + ')'
+                            for v_plot in ac_res_list:
+                                v1 = v_plot[control_command[i + 1] - 1]
+                                if node2 != 0:
+                                    v2 = v_plot[node2 - 1]
+                                    plot_voltage.append(v1.real - v2.real)
+                                else:
+                                    plot_voltage.append(v1.real)
+                        elif control_command[i] == 'vi':  # imag
+                            plt.ylabel("V.imag(V)")
+                            if node2 != 0:
+                                plot_label = 'VI' + '(' + str(control_command[i + 1]) + ',' + str(node2) + ')'
+                            else:
+                                plot_label = 'VI' + '(' + str(control_command[i + 1]) + ')'
+                            for v_plot in ac_res_list:
+                                v1 = v_plot[control_command[i + 1] - 1]
+                                if node2 != 0:
+                                    v2 = v_plot[node2 - 1]
+                                    plot_voltage.append(v1.imag - v2.imag)
+                                else:
+                                    plot_voltage.append(v1.imag)
+                        elif control_command[i] == 'vp':
+                            plt.ylabel("phase(degree)")
+                            if node2 != 0:
+                                plot_label = 'VP' + '(' + str(control_command[i + 1]) + ',' + str(node2) + ')'
+                            else:
+                                plot_label = 'VP' + '(' + str(control_command[i + 1]) + ')'
+                            for v_plot in ac_res_list:
+                                v1 = v_plot[control_command[i + 1] - 1]
+                                if node2 != 0:
+                                    v2 = v_plot[node2 - 1]
+                                    phase2 = 180 * math.atan2(v1.imag - v2.imag, v1.real - v2.real) / math.pi
+                                    plot_voltage.append(phase2)
+                                else:
+                                    phase1 = 180 * math.atan2(v1.imag, v1.real) / math.pi
+                                    plot_voltage.append(phase1)
+                        elif control_command[i] == 'vdb':
+                            plt.ylabel("V(dB)")
+                            if node2 != 0:
+                                plot_label = 'VDB' + '(' + str(control_command[i + 1]) + ',' + str(node2) + ')'
+                            else:
+                                plot_label = 'VDB' + '(' + str(control_command[i + 1]) + ')'
+                            for v_plot in ac_res_list:
+                                v1 = v_plot[control_command[i + 1] - 1]
+                                if node2 != 0:
+                                    v2 = v_plot[node2 - 1]
+                                    plot_voltage.append(20 * math.log10(abs(v1 - v2)))
+                                else:
+                                    plot_voltage.append(20 * math.log10(abs(v1)))
+                        elif control_command[i] == 'v' or control_command[i] == 'vm':
+                            plt.ylabel("V(V)")
+                            if node2 != 0:
+                                plot_label = 'VM' + '(' + str(control_command[i + 1]) + ',' + str(node2) + ')'
+                            else:
+                                plot_label = 'VM' + '(' + str(control_command[i + 1]) + ')'
+                            for v_plot in ac_res_list:
+                                v1 = v_plot[control_command[i + 1] - 1]
+                                if node2 != 0:
+                                    v2 = v_plot[node2 - 1]
+                                    plot_voltage.append(abs(v1 - v2))
+                                else:
+                                    plot_voltage.append(abs(v1))
+                        else:
+                            pass
+                        if ac_swepp_type == 'dec':
+                            plt.semilogx(freq_list, plot_voltage, label=plot_label)
+                        elif ac_swepp_type == 'oct':
+                            plt.plot(freq_list, plot_voltage, label=plot_label)
+                        else:
+                            plt.plot(freq_list, plot_voltage, label=plot_label)
+                    elif 'i' in str(control_command[i]):
+                        fignum += 1
+                        plt.figure(fignum)
+                        plot_i = []
+                        for vsrc_match in v_list:
+                            if vsrc_match['name'] == control_command[i + 1]:
+                                if 'r' in control_command[i]:  # real
+                                    plt.ylabel("i.real(A)")
+                                    plot_label = 'IR' + '(' + vsrc_match['name'] + ')'
+                                    for i_plot in ac_res_list:
+                                        i1 = i_plot[vsrc_match['branch_info'] + col_normal - 1]
+                                        plot_i.append(i1.real)
+                                elif 'i' in control_command[i]:  # imag
+                                    plt.ylabel("i.imag(A)")
+                                    plot_label = 'II' + '(' + vsrc_match['name'] + ')'
+                                    for i_plot in ac_res_list:
+                                        i1 = i_plot[vsrc_match['branch_info'] + col_normal - 1]
+                                        plot_i.append(i1.imag)
+                                elif 'p' in control_command[i]:
+                                    plt.ylabel("phase(°)")
+                                    plot_label = 'IP' + '(' + vsrc_match['name'] + ')'
+                                    for i_plot in ac_res_list:
+                                        i1 = i_plot[vsrc_match['branch_info'] + col_normal - 1]
+                                        phase = 180 * math.atan2(i1.imag, i1.real) / math.pi
+                                        plot_i.append(phase)
+                                elif 'db' in control_command[i]:
+                                    plt.ylabel("i(dB)")
+                                    plot_label = 'IDB' + '(' + vsrc_match['name'] + ')'
+                                    for i_plot in ac_res_list:
+                                        i1 = i_plot[vsrc_match['branch_info'] + col_normal - 1]
+                                        plot_i.append(20 * math.log10(abs(i1)))
+                                else:
+                                    plt.ylabel("i(i)")
+                                    plot_label = 'IM' + '(' + vsrc_match['name'] + ')'
+                                    for i_plot in ac_res_list:
+                                        i1 = i_plot[vsrc_match['branch_info'] + col_normal - 1]
+                                        plot_i.append(abs(i1))
+                                if ac_swepp_type == 'dec':
+                                    plt.semilogx(freq_list, plot_i, label=plot_label)
+                                elif ac_swepp_type == 'oct':
+                                    plt.plot(freq_list, plot_i, label=plot_label)
+                                else:
+                                    plt.plot(freq_list, plot_i, label=plot_label)
+                    else:
+                        pass
+                    plt.title("AC Analysis")
+                    plt.xlabel("freq(Hz)")
+                    plt.autoscale()
+                    plt.legend(loc='best')
+
+    if fignum != 0:
         plt.show()
+
 
 if __name__ == '__main__':
     filename = raw_input("please enter netlist filename:")

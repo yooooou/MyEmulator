@@ -2,7 +2,6 @@
 # python 2.7
 import re
 import math
-import cmath
 import numpy as np
 import matplotlib.pyplot as plt
 
