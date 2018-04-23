@@ -1,5 +1,6 @@
 # coding: utf-8
 # python 2.7
+from Tkconstants import END
 
 import myparser
 import myengine
@@ -8,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def engine(filename):
+def engine(filename, text_output):
     file_handle = open(filename, 'r')
     element_list = []
     v_list = []
@@ -27,29 +28,35 @@ def engine(filename):
         line = file_handle.readline().strip().lower()
         if not line:
             break
+    file_handle.close()
     col_normal = col_br_list[0]
     branch = col_br_list[1]
     branch_c = col_br_list[2]
-    print "******************************parser***************************************"
-    print "element_list:", element_list
-    print "v_list:", v_list
-    print "i_list:", i_list
-    print "c_list:", c_list
-    print "l_list:", l_list
-    print "d_list:", d_list
-    print "mos_list:", mos_list
-    print "control_list:", control_list
-    print "model_list:", model_list
-    print "col_normal:", col_normal
-    print "branch:", branch
-    print "branch_c:", branch_c
-    print "****************************dc analysis***************************************"
+    # text_print = []
+    text_output.insert(END,"****************************dc analysis***************************************\n")
+    # print "******************************parser***************************************"
+    # print "element_list:", element_list
+    # print "v_list:", v_list
+    # print "i_list:", i_list
+    # print "c_list:", c_list
+    # print "l_list:", l_list
+    # print "d_list:", d_list
+    # print "mos_list:", mos_list
+    # print "control_list:", control_list
+    # print "model_list:", model_list
+    # print "col_normal:", col_normal
+    # print "branch:", branch
+    # print "branch_c:", branch_c
+    # print "****************************dc analysis***************************************"
+
     rows = col_normal + branch
     MNA_dc = np.zeros((rows, rows))
     RHS_dc = [0] * rows
     RHS_ac = [0] * rows
     dc_res = myengine.dc_stamp(col_normal, MNA_dc, RHS_dc, RHS_ac, v_list, i_list, d_list, mos_list,
                                element_list, l_list, rows)
+    text_output.insert(END,"result: ")
+    text_output.insert(END,dc_res)
 
     dc_2srcs_sweep_list = []
     src2 = []
@@ -59,20 +66,22 @@ def engine(filename):
     dc_src1 = ''
     for control_command in control_list:
         if control_command[0] == 'dc':
-            print "****************************dc sweep******************************************"
+            # print "****************************dc sweep******************************************"
+            text_output.insert(END, "\n****************************dc sweep******************************************")
             dc_src1 = control_command[1]
             dc_sweep_list = []
             dc_2srcs_res_list = []
             myengine.dc_sweep(control_command, MNA_dc, v_list, i_list, dc_sweep_list, dc_2srcs_res_list,
-                              dc_2srcs_sweep_list, rows, col_normal, d_list, mos_list, src2)
+                              dc_2srcs_sweep_list, rows, col_normal, d_list, mos_list, src2, text_output)
         if control_command[0] == 'ac':
-            print "****************************ac analysis***************************************"
+            # print "****************************ac analysis***************************************"
+            text_output.insert(END, "\n****************************ac analysis***************************************")
             ac_swepp_type = control_command[1]
-            print "RHS_ac:", RHS_ac
+            # print "RHS_ac:", RHS_ac
             myengine.ac_analysis(control_command, rows, col_normal, c_list, l_list, MNA_dc,
-                                 RHS_ac, ac_res_list, freq_list)
+                                 RHS_ac, ac_res_list, freq_list,text_output)
         if control_command[0] == "tran":
-            print "****************************tran analysis***************************************"
+            text_output.insert(END, "\n****************************tran analysis*************************************")
             tran_rows = rows + branch_c
             tran_res_list = []
             tran_print_list = []
@@ -84,7 +93,7 @@ def engine(filename):
             MNA_tran = np.vstack((np.hstack((MNA_dc, MNA_tran_cols)), MNA_tran_rows))
             time_list = []
             myengine.tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list, c_list, l_list,
-                                   v_list, i_list, d_list, mos_list, time_list, rows, col_normal, tran_rows)
+                                   v_list, i_list, d_list, mos_list, time_list, rows, col_normal, tran_rows,text_output)
 
     fignum = 0
     for control_command in control_list:  # plot & print
@@ -147,7 +156,6 @@ def engine(filename):
                                     break
                     else:
                         pass
-
                     if dc_src1[0] == 'v':
                         plt.xlabel(dc_src1 + "(V)")
                     elif dc_src1[0] == 'i':
@@ -185,7 +193,7 @@ def engine(filename):
                         plt.figure(fignum)
                         plt.ylabel("I(A)")
                         plot_i = []
-                        for vsrc_match in i_list:
+                        for vsrc_match in v_list:
                             if vsrc_match['name'] == control_command[i + 1]:
                                 for i_plot in tran_print_list:
                                     plot_i.append(i_plot[vsrc_match['branch_info'] + col_normal - 1])
@@ -338,8 +346,7 @@ def engine(filename):
 
     if fignum != 0:
         plt.show()
-
-
+    # return  plt
 if __name__ == '__main__':
     filename = raw_input("please enter netlist filename:")
     engine(filename)

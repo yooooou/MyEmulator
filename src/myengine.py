@@ -1,6 +1,6 @@
 # coding: utf-8
 # python 2.7
-
+from Tkconstants import END
 import math
 import numpy as np
 
@@ -96,11 +96,10 @@ def dc_stamp(col_normal, MNA_dc, RHS_dc, RHS_ac, v_list, i_list, d_list, mos_lis
         if n2 >= 0:
             MNA_dc[n2, br_l - 1] += -1
             MNA_dc[br_l - 1, n2] += -1
-
     return nonlinear_analysis(d_list, mos_list, MNA_dc, RHS_dc, rows)
 
 def dc_sweep(control_command, MNA_dc, v_list, i_list, dc_sweep_list, dc_2srcs_res_list,dc_2srcs_sweep_list,
-             rows, col_normal, d_list, mos_list, src2_name):
+             rows, col_normal, d_list, mos_list, src2_name, text_output):
     src1_n1 = 0
     src1_n2 = 0
     src1_br = 0
@@ -140,6 +139,8 @@ def dc_sweep(control_command, MNA_dc, v_list, i_list, dc_sweep_list, dc_2srcs_re
                 RHS_dc_sweep = map(lambda (a, b): a + b, zip(RHS_dc_sweep, RHS_base))
                 dc_res_list.append(nonlinear_analysis(d_list,mos_list,MNA_dc,RHS_dc_sweep,rows))
                 dc_sweep_list.append(src1_cur_value)
+                text_output.insert(END, '\n'+src1+'='+str(src1_cur_value)+'V\n'+'result: ')
+                text_output.insert(END, dc_res_list[-1])
                 src1_cur_value += src1_step
         else:
             while src1_cur_value <= src1_end:
@@ -153,6 +154,8 @@ def dc_sweep(control_command, MNA_dc, v_list, i_list, dc_sweep_list, dc_2srcs_re
                 RHS_dc_sweep = map(lambda (a, b): a + b, zip(RHS_dc_sweep, RHS_base))
                 dc_res_list.append(nonlinear_analysis(d_list, mos_list, MNA_dc, RHS_dc_sweep, rows))
                 dc_sweep_list.append(src1_cur_value)
+                text_output.insert(END, '\n'+src1+'='+str(src1_cur_value)+'A\n'+'result: ')
+                text_output.insert(END, dc_res_list[-1])
                 src1_cur_value += src1_step
         dc_2srcs_res_list.append(dc_res_list)
     else:                                         # 2 srcs
@@ -190,6 +193,7 @@ def dc_sweep(control_command, MNA_dc, v_list, i_list, dc_sweep_list, dc_2srcs_re
                         RHS_base[n2] += isrc['dc_value']
         if src2[0] == "v":
             while src2_cur_value <= src2_end:
+                text_output.insert(END, '\n\n' + src2 + '=' + str(src2_cur_value) + 'V:' )
                 dc_res_list = []
                 src1_cur_value = src1_start
                 if src1[0] == "v":
@@ -201,6 +205,8 @@ def dc_sweep(control_command, MNA_dc, v_list, i_list, dc_sweep_list, dc_2srcs_re
                         dc_res_list.append(nonlinear_analysis(d_list, mos_list, MNA_dc, RHS_dc_sweep, rows))
                         if src2_cur_value == control_command[6]:
                             dc_sweep_list.append(src1_cur_value)
+                        text_output.insert(END, '\n'+src1 + '=' + str(src1_cur_value) + 'V\n' + 'result: ')
+                        text_output.insert(END, dc_res_list[-1])
                         src1_cur_value += src1_step
                 else:
                     while src1_cur_value <= src1_end:
@@ -217,12 +223,16 @@ def dc_sweep(control_command, MNA_dc, v_list, i_list, dc_sweep_list, dc_2srcs_re
                         dc_sweep_list.append(src1_cur_value)
                         if src2_cur_value == control_command[6]:
                             dc_sweep_list.append(src1_cur_value)
+                        text_output.insert(END, '\n' + src1 + '=' + str(src1_cur_value) + 'A\n' + 'result: ')
+                        text_output.insert(END, dc_res_list[-1])
+                        src1_cur_value += src1_step
                 dc_2srcs_res_list.append(dc_res_list)
                 dc_2srcs_sweep_list.append(src2_cur_value)
                 src2_cur_value += src2_step
 
         else:
             while src2_cur_value <= src2_end:
+                text_output.insert(END, '\n\n' + src2 + '=' + str(src2_cur_value) + 'A:' )
                 dc_res_list = []
                 src1_cur_value = src1_start
                 if src1[0] == "v":
@@ -239,6 +249,8 @@ def dc_sweep(control_command, MNA_dc, v_list, i_list, dc_sweep_list, dc_2srcs_re
                         dc_res_list.append(nonlinear_analysis(d_list, mos_list, MNA_dc, RHS_dc_sweep, rows))
                         if src2_cur_value == control_command[6]:
                             dc_sweep_list.append(src1_cur_value)
+                        text_output.insert(END, '\n' + src1 + '=' + str(src1_cur_value) + 'V\n' + 'result: ')
+                        text_output.insert(END, dc_res_list[-1])
                         src1_cur_value += src1_step
                 else:
                     while src1_cur_value <= src1_end:
@@ -259,12 +271,15 @@ def dc_sweep(control_command, MNA_dc, v_list, i_list, dc_sweep_list, dc_2srcs_re
                         dc_res_list.append(nonlinear_analysis(d_list, mos_list, MNA_dc, RHS_dc_sweep, rows))
                         if src2_cur_value == control_command[6]:
                             dc_sweep_list.append(src1_cur_value)
+                        text_output.insert(END, '\n' + src1 + '=' + str(src1_cur_value) + 'A\n' + 'result: ')
+                        text_output.insert(END, dc_res_list[-1])
                         src1_cur_value += src1_step
                 dc_2srcs_res_list.append(dc_res_list)
                 dc_2srcs_sweep_list.append(src2_cur_value)
                 src2_cur_value += src2_step
 
-def ac_sweep(rows, col_normal, c_list, l_list, MNA_dc, RHS_ac, points, step, ac_res_list, freq_list, start, type):
+def ac_sweep(rows, col_normal, c_list, l_list, MNA_dc, RHS_ac, points, step, ac_res_list, freq_list,
+             start, type, text_output):
     for i in range(points):
         MNA_ac = np.zeros((rows, rows), complex)
         if type == "lin":
@@ -289,22 +304,24 @@ def ac_sweep(rows, col_normal, c_list, l_list, MNA_dc, RHS_ac, points, step, ac_
             br_l = l_element[-1] + col_normal
             MNA_ac[br_l - 1, br_l - 1] += -sl
         MNA_ac += MNA_dc
-        print ("omega = %f rad/s" % omega)
-        print "MNA_ac:", MNA_ac
+        # print ("omega = %f rad/s" % omega)
+        # print "MNA_ac:", MNA_ac
         ac_res = np.linalg.solve(MNA_ac, RHS_ac)
-        print "ac results:", ac_res
+        # print "ac results:", ac_res
+        text_output.insert(END, ("\nfreq = %e Hz\nresult: " % freq))
+        text_output.insert(END, ac_res)
         ac_res_list.append(ac_res)
         freq_list.append(freq)
 
 
-def ac_analysis(control_command, rows, col_normal, c_list, l_list, MNA_dc, RHS_ac, ac_res_list, freq_list):
+def ac_analysis(control_command, rows, col_normal, c_list, l_list, MNA_dc, RHS_ac, ac_res_list, freq_list, text_output):
     start = control_command[3]
     end = control_command[4]
 
     if control_command[1] == "lin":
         step = (end - start) / (control_command[2] + 1.0)
         ac_sweep(rows, col_normal, c_list, l_list, MNA_dc, RHS_ac, control_command[2] + 2,
-                 step, ac_res_list, freq_list, start, "lin")
+                 step, ac_res_list, freq_list, start, "lin", text_output)
 
     elif control_command[1] == "dec":
         dec_start = math.log10(start)
@@ -312,18 +329,18 @@ def ac_analysis(control_command, rows, col_normal, c_list, l_list, MNA_dc, RHS_a
         dec_step = 1 / (control_command[2] + 1.0)
         dec_points = (dec_end - dec_start) * (control_command[2] + 1) + 1
         ac_sweep(rows, col_normal, c_list, l_list, MNA_dc, RHS_ac, int(dec_points),
-                 dec_step, ac_res_list, freq_list, dec_start, "dec")
+                 dec_step, ac_res_list, freq_list, dec_start, "dec", text_output)
     else:
         oct_start = math.log(start, 2)
         oct_end = math.log(end, 2)
         oct_step = 1 / (control_command[2] + 1.0)
         oct_points = (oct_end - oct_start) * (control_command[2] + 1) + 1
         ac_sweep(rows, col_normal, c_list, l_list, MNA_dc, RHS_ac, int(oct_points),
-                 oct_step, ac_res_list, freq_list, oct_start, "oct")
+                 oct_step, ac_res_list, freq_list, oct_start, "oct", text_output)
 
 
 def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
-                  c_list, l_list, v_list, i_list, d_list, mos_list, time_list, rows, col_normal, tran_rows):
+                  c_list, l_list, v_list, i_list, d_list, mos_list, time_list, rows, col_normal, tran_rows, text_output):
     tstep_print = control_command[1]
     tstop = control_command[2]
     if len(control_command) > 3:
@@ -354,15 +371,17 @@ def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
         MNA_tran[br_l, br_l] += -(2.0 * l_element[3]) / tmax
 
     # print ("tmax:%e s" % tmax)
-    print ("print step:%e s" % tstep_print)
-    print "MNA_tran:", MNA_tran
+    # print ("print step:%e s" % tstep_print)
+    # print "MNA_tran:", MNA_tran
 
     time = 0
 
     if tstart == 0:
         time_list.append(time)
-        print ("start time = %f s" % time)
-        print "results:", tran_res_list[-1]
+        # print ("start time = %f s" % time)
+        # print "results:", tran_res_list[-1]
+        text_output.insert(END,("\nstart time = %e s\nresult: " % time))
+        text_output.insert(END,tran_res_list[-1])
         tran_print_list.append(tran_res_list[-1])
 
     else:
@@ -402,7 +421,7 @@ def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
                         RHS_tran[br] += vsrc['dc_value']
                     else:
                         time_in_per = time - vsrc['td'] - int((time - vsrc['td'])/vsrc['per'])*vsrc['per']
-                        print "time_in_per",time_in_per
+                        # print "time_in_per",time_in_per
                         if time_in_per < vsrc['tr']:
                             RHS_tran[br] += vsrc['pulse_v1'] + time_in_per*slope_r
                         elif time_in_per<vsrc['tr']+vsrc['pw']:
@@ -443,8 +462,10 @@ def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
             # cur_res = np.linalg.solve(MNA_tran, RHS_tran)
             tran_res_list.append(cur_res)
         time_list.append(time)
-        print ("start time = %f s" % time)
-        print "results:", tran_res_list[-1]
+        # print ("start time = %f s" % time)
+        # print "results:", tran_res_list[-1]
+        text_output.insert(END,("\nstart time = %e s\nresult: " % time))
+        text_output.insert(END,tran_res_list[-1])
         tran_print_list.append(tran_res_list[-1])
 
     time_n_printstep = time + tstep_print
@@ -486,7 +507,7 @@ def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
                     RHS_tran[br] += vsrc['dc_value']
                 else:
                     time_in_per = time - vsrc['td'] - int((time - vsrc['td']) / vsrc['per']) * vsrc['per']
-                    print "time_in_per", time_in_per
+                    # print "time_in_per", time_in_per
                     if time_in_per < vsrc['tr']:
                         RHS_tran[br] += vsrc['pulse_v1'] + time_in_per * slope_r
                     elif time_in_per < vsrc['tr'] + vsrc['pw']:
@@ -530,21 +551,23 @@ def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
         tran_res_list.append(cur_res)
         if time >= time_n_printstep:
             time_list.append(time)
-            print " "
-            print ("time = %e s" % time)
-            print "RHS_tran:", RHS_tran
-            print "results:", cur_res
+            # print " "
+            # print ("time = %e s" % time)
+            # print "RHS_tran:", RHS_tran
+            # print "results:", cur_res
+            text_output.insert(END, ("\ntime = %e s\nresult: " % time))
+            text_output.insert(END, cur_res)
             tran_print_list.append(cur_res)
             time_n_printstep += tstep_print
 
 
 def nonlinear_analysis(d_list, mos_list, MNA_base, RHS_base, rows):
     if (len(d_list) == 0 )and (len(mos_list) == 0):
-        print "linear"
-        print "MNA:", MNA_base
-        print "RHS:", RHS_base
+        # print "linear"
+        # print "MNA:", MNA_base
+        # print "RHS:", RHS_base
         res = np.linalg.solve(MNA_base, RHS_base)
-        print "results:", res
+        # print "results:", res
     else:
         # print "Nonlinear"
         flag = 0
@@ -596,9 +619,9 @@ def nonlinear_analysis(d_list, mos_list, MNA_base, RHS_base, rows):
 
                     if times == 1:
                         if mos_element['model_name'] == 'nmos':
-                            vgs = 0
+                            vgs = 0.9
                         else:
-                            vgs = -1.8
+                            vgs = -0.9
                         vds = 0
                         flag = 0
                     else:
@@ -608,7 +631,10 @@ def nonlinear_analysis(d_list, mos_list, MNA_base, RHS_base, rows):
                             vgs -= res[source_node]
                             vds -= res[source_node]
                         if times == 2:
-                            vgs_last = 0.7
+                            if mos_element['model_name'] == 'nmos':
+                                vgs_last = 0.9
+                            else:
+                                vgs_last = -0.9
                             vds_last = 0
                         else:
                             vgs_last = res_last[gate_node]
@@ -681,7 +707,7 @@ def nonlinear_analysis(d_list, mos_list, MNA_base, RHS_base, rows):
                         RHS_nonlinear[source_node] += I0
 
             if flag == 1:
-                print "final results:", res
+                # print "final results:", res
                 break
 
             MNA_nonlinear += MNA_base
@@ -689,9 +715,9 @@ def nonlinear_analysis(d_list, mos_list, MNA_base, RHS_base, rows):
             if times > 1:
                 res_last = res
             res = list(np.linalg.solve(MNA_nonlinear, RHS_nonlinear))
-            print "times:", times
-            print "MNA:", MNA_nonlinear
-            print "RHS:", RHS_nonlinear
-            print "results:", res
+            # print "times:", times
+            # print "MNA:", MNA_nonlinear
+            # print "RHS:", RHS_nonlinear
+            # print "results:", res
             times += 1
     return res

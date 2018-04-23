@@ -1,7 +1,0 @@
-*simple diode CIRCUIT
-vs 1 0 5
-r1 1 2 5
-r2 2 0 5
-.dc vs 1 10 1
-.print dc i(vs)
-.END

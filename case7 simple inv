@@ -1,4 +1,4 @@
-*simple inv for tran sim
+*simple inv for tran sim & dc sweep
 vin 1 0 pulse 0 1.8 2ns 2ns 2ns 15ns 35ns
 vcc 3 0 1.8
 mn1 2 1 0 0 nmos w=2u l=1u

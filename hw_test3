@@ -1,7 +1,0 @@
-*netlist example 1
-R0 1 2 5
-l0 1 2 1
-C0 2 0 12
-V0 1 0 10 sin(10 2.5 1)
-.tran 1  100 0 1
-.end

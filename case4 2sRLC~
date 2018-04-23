@@ -1,0 +1,13 @@
+*two stage RLC CIRCUIT
+vs 1 0 ac 1 0 sin(2.5 2.5 20k)
+r1 1 2 10
+l1 2 3 1m
+c1 3 0 1u
+r2 3 4 10
+l2 4 5 1m
+c2 5 0 1u
+.tran 0.1us 1m
+.ac dec 10 10 1Meg
+.print ac v(5)
+.print tran v(5)
+.END

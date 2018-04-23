@@ -1,6 +1,0 @@
-*simple diode CIRCUIT for tran sim
-Is 0 1 sin(1 1 1meg)
-d1 1 2
-c1 2 0 1u
-.tran 10ns 3u 0 2ns
-.END

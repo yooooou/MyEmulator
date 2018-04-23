@@ -1,0 +1,7 @@
+*simple r&d for tran sim
+vin 1 0 sin(0 2 1k)
+r1 1 2 0.3m
+d1 2 0
+.tran 10u 3m
+.print tran v(2) v(1) i(vin)
+.END

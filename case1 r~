@@ -1,0 +1,9 @@
+*simple CIRCUIT for dc sweep
+vs 1 0 5
+r1 1 2 5k
+r2 2 3 5k
+r3 3 0 5k
+vr1 1 2
+.dc vs 5 15 1
+.print dc i(vr1)
+.END
