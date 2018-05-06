@@ -53,8 +53,8 @@ def engine(filename, text_output):
     MNA_dc = np.zeros((rows, rows))
     RHS_dc = [0] * rows
     RHS_ac = [0] * rows
-    dc_res = myengine.dc_stamp(col_normal, MNA_dc, RHS_dc, RHS_ac, v_list, i_list, d_list, mos_list,
-                               element_list, l_list, rows)
+    dc_res = myengine.dc_stamp(col_br_list, MNA_dc, RHS_dc, RHS_ac, v_list, i_list, d_list, mos_list,
+                               element_list, l_list)
     text_output.insert(END,"result: ")
     text_output.insert(END,dc_res)
 
@@ -71,7 +71,7 @@ def engine(filename, text_output):
             dc_src1 = control_command[1]
             dc_sweep_list = []
             dc_2srcs_res_list = []
-            myengine.dc_sweep(control_command, MNA_dc, v_list, i_list, dc_sweep_list, dc_2srcs_res_list,
+            myengine.dc_sweep(control_command, MNA_dc, RHS_dc, v_list, i_list, dc_sweep_list, dc_2srcs_res_list,
                               dc_2srcs_sweep_list, rows, col_normal, d_list, mos_list, src2, text_output)
         if control_command[0] == 'ac':
             # print "****************************ac analysis***************************************"

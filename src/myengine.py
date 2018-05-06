@@ -5,18 +5,22 @@ import math
 import numpy as np
 
 
-def dc_stamp(col_normal, MNA_dc, RHS_dc, RHS_ac, v_list, i_list, d_list, mos_list, element_list, l_list, rows):
+def dc_stamp(col_br_list, MNA_dc, RHS_dc, RHS_ac, v_list, i_list, d_list, mos_list, element_list, l_list):
+    col_normal = col_br_list[0]
+    branch = col_br_list[1]
+    rows = col_normal + branch
+
     for vsrc in v_list:
         n1 = vsrc['node+'] - 1
         n2 = vsrc['node-'] - 1
-        br = vsrc['branch_info'] + col_normal
-        RHS_dc[br - 1] = vsrc['dc_value']
-        RHS_ac[br - 1] = vsrc['ac_mag']
-        MNA_dc[n1, br - 1] += 1
-        MNA_dc[br - 1, n1] += 1
+        br = vsrc['branch_info'] + col_normal - 1
+        RHS_dc[br] = vsrc['dc_value']
+        RHS_ac[br] = vsrc['ac_mag']
+        MNA_dc[n1, br] += 1
+        MNA_dc[br, n1] += 1
         if n2 >= 0:
-            MNA_dc[n2, br - 1] += -1
-            MNA_dc[br - 1, n2] += -1
+            MNA_dc[n2, br] += -1
+            MNA_dc[br, n2] += -1
 
     for isrc in i_list:
         n1 = isrc['node+'] - 1
@@ -43,25 +47,25 @@ def dc_stamp(col_normal, MNA_dc, RHS_dc, RHS_ac, v_list, i_list, d_list, mos_lis
                 MNA_dc[n2, n2] += g
 
         elif element[0][0] == "e":
-            br = element[-1] + col_normal
+            br = element[-1] + col_normal - 1
             n3 = element[3] - 1
             n4 = element[4] - 1
-            MNA_dc[n1, br - 1] += 1
-            MNA_dc[br - 1, n1] += 1
-            MNA_dc[br - 1, n3] += -element[5]
+            MNA_dc[n1, br] += 1
+            MNA_dc[br, n1] += 1
+            MNA_dc[br, n3] += -element[5]
             if n2 >= 0:
-                MNA_dc[n2, br - 1] += -1
-                MNA_dc[br - 1, n2] += -1
+                MNA_dc[n2, br] += -1
+                MNA_dc[br, n2] += -1
             if n4 >= 0:
-                MNA_dc[br - 1, n4] += element[5]
+                MNA_dc[br, n4] += element[5]
         elif element[0][0] == "f":
             for v_comp in v_list:
                 if v_comp[0] == element[3]:
-                    br = v_comp[-1] + col_normal
+                    br = v_comp[-1] + col_normal - 1
                     if n1 >= 0:
-                        MNA_dc[n1, br - 1] += element[4]
+                        MNA_dc[n1, br] += element[4]
                     if n2 >= 0:
-                        MNA_dc[n2, br - 1] += -element[4]
+                        MNA_dc[n2, br] += -element[4]
                     break
         elif element[0][0] == "g":
             n3 = element[3] - 1
@@ -75,35 +79,38 @@ def dc_stamp(col_normal, MNA_dc, RHS_dc, RHS_ac, v_list, i_list, d_list, mos_lis
                 if n4 >= 0:
                     MNA_dc[n1, n4] += element[5]
         elif element[0][0] == "h":
-            br_vs = element[-1] + col_normal
-            MNA_dc[n1, br_vs - 1] += 1
-            MNA_dc[br_vs - 1, n1] += 1
+            br_vs = element[-1] + col_normal - 1
+            MNA_dc[n1, br_vs] += 1
+            MNA_dc[br_vs, n1] += 1
             if n2 >= 0:
-                MNA_dc[n2, br_vs - 1] += -1
-                MNA_dc[br_vs - 1, n2] += -1
+                MNA_dc[n2, br_vs] += -1
+                MNA_dc[br_vs, n2] += -1
             for v_comp in v_list:
                 if v_comp[0] == element[3]:
-                    br = v_comp[-1] + col_normal
-                    MNA_dc[br_vs - 1, br - 1] = -element[4]
+                    br = v_comp[-1] + col_normal - 1
+                    MNA_dc[br_vs, br] = -element[4]
                 break
 
     for l_element in l_list:
         n1 = l_element[1] - 1
         n2 = l_element[2] - 1
-        br_l = l_element[-1] + col_normal
-        MNA_dc[n1, br_l - 1] += 1
-        MNA_dc[br_l - 1, n1] += 1
+        br_l = l_element[-1] + col_normal - 1
+        MNA_dc[n1, br_l] += 1
+        MNA_dc[br_l, n1] += 1
         if n2 >= 0:
-            MNA_dc[n2, br_l - 1] += -1
-            MNA_dc[br_l - 1, n2] += -1
-    return nonlinear_analysis(d_list, mos_list, MNA_dc, RHS_dc, rows)
+            MNA_dc[n2, br_l] += -1
+            MNA_dc[br_l, n2] += -1
 
-def dc_sweep(control_command, MNA_dc, v_list, i_list, dc_sweep_list, dc_2srcs_res_list,dc_2srcs_sweep_list,
+    return res_compute(d_list, mos_list, MNA_dc, RHS_dc, rows)
+
+
+def dc_sweep(control_command, MNA_dc, RHS_dc, v_list, i_list, dc_sweep_list, dc_2srcs_res_list, dc_2srcs_sweep_list,
              rows, col_normal, d_list, mos_list, src2_name, text_output):
+    
+    RHS_dc_sweep = RHS_dc
     src1_n1 = 0
     src1_n2 = 0
     src1_br = 0
-    RHS_base = [0] * rows
     src1 = control_command[1]
     src1_start = control_command[2]
     src1_cur_value = src1_start
@@ -111,172 +118,172 @@ def dc_sweep(control_command, MNA_dc, v_list, i_list, dc_sweep_list, dc_2srcs_re
     src1_step = control_command[4]
     dc_res_list = []
 
-    if len(control_command) == 5:                 # one src
-        for vsrc in v_list:
-            if vsrc['name'] !=src1 :
-                br = vsrc['branch_info'] + col_normal - 1
-                RHS_base[br] = vsrc['dc_value']
-            else:
-                src1_br = vsrc['branch_info'] + col_normal - 1
-        for isrc in i_list:
-            if isrc['name'] !=src1:
-                n1 = isrc['node+'] - 1
-                n2 = isrc['node-'] - 1
-                if n1 < 0:
-                    RHS_base[n2] += isrc['dc_value']
-                else:
-                    RHS_base[n1] += -isrc['dc_value']
-                    if n2 >= 0:
-                        RHS_base[n2] += isrc['dc_value']
-            else:
-                src1_n1 = isrc['node+'] - 1
-                src1_n2 = isrc['node-'] - 1
-                
-        if src1[0] == "v":
+    if len(control_command) == 5:  # one src
+        if src1[0] == 'v':
+            for vsrc in v_list:
+                if vsrc['name'] == src1:
+                    src1_br = vsrc['branch_info'] + col_normal - 1
+                    RHS_dc_sweep[src1_br] +=  src1_start - vsrc['dc_value']
+                    break
+                    
             while src1_cur_value <= src1_end:
-                RHS_dc_sweep = [0] * rows
-                RHS_dc_sweep[src1_br] += src1_cur_value
-                RHS_dc_sweep = map(lambda (a, b): a + b, zip(RHS_dc_sweep, RHS_base))
-                dc_res_list.append(nonlinear_analysis(d_list,mos_list,MNA_dc,RHS_dc_sweep,rows))
+                print RHS_dc_sweep
+                dc_res_list.append(res_compute(d_list, mos_list, MNA_dc, RHS_dc_sweep, rows))
                 dc_sweep_list.append(src1_cur_value)
-                text_output.insert(END, '\n'+src1+'='+str(src1_cur_value)+'V\n'+'result: ')
+                text_output.insert(END, '\n' + src1 + '=' + str(src1_cur_value) + 'V\n' + 'result: ')
                 text_output.insert(END, dc_res_list[-1])
                 src1_cur_value += src1_step
+                RHS_dc_sweep[src1_br] += src1_step
         else:
+            for isrc in i_list:
+                if isrc['name'] == src1:
+                    src1_n1 = isrc['node+'] - 1
+                    src1_n2 = isrc['node-'] - 1
+                    if src1_n1 < 0:
+                        RHS_dc_sweep[src1_n2] += src1_start - isrc['dc_value']
+                    else:
+                        RHS_dc_sweep[src1_n1] += - src1_start - isrc['dc_value']
+                        if src1_n2 >= 0:
+                            RHS_dc_sweep[src1_n2] += src1_start - isrc['dc_value']
+                    break
             while src1_cur_value <= src1_end:
-                RHS_dc_sweep = [0] * rows
-                if src1_n1 < 0:
-                    RHS_dc_sweep[src1_n2] += src1_cur_value
-                else:
-                    RHS_dc_sweep[src1_n1] += - src1_cur_value
-                    if src1_n2 >= 0:
-                        RHS_dc_sweep[src1_n2] += src1_cur_value
-                RHS_dc_sweep = map(lambda (a, b): a + b, zip(RHS_dc_sweep, RHS_base))
-                dc_res_list.append(nonlinear_analysis(d_list, mos_list, MNA_dc, RHS_dc_sweep, rows))
+                dc_res_list.append(res_compute(d_list, mos_list, MNA_dc, RHS_dc_sweep, rows))
                 dc_sweep_list.append(src1_cur_value)
-                text_output.insert(END, '\n'+src1+'='+str(src1_cur_value)+'A\n'+'result: ')
+                text_output.insert(END, '\n' + src1 + '=' + str(src1_cur_value) + 'A\n' + 'result: ')
                 text_output.insert(END, dc_res_list[-1])
                 src1_cur_value += src1_step
+                if src1_n1 < 0:
+                    RHS_dc_sweep[src1_n2] += src1_step
+                else:
+                    RHS_dc_sweep[src1_n1] += - src1_step
+                    if src1_n2 >= 0:
+                        RHS_dc_sweep[src1_n2] += src1_step
         dc_2srcs_res_list.append(dc_res_list)
-    else:                                         # 2 srcs
+    else:  # 2 srcs
         src2_n1 = 0
         src2_n2 = 0
         src2_br = 0
         src2 = control_command[5]
-        src2_cur_value = control_command[6]
+        src2_start = control_command[6]
+        src2_cur_value = src2_start
         src2_end = control_command[7]
         src2_step = control_command[8]
         src2_name.append(src2)
         for vsrc in v_list:
             if vsrc['name'] == src1:
                 src1_br = vsrc['branch_info'] + col_normal - 1
-            elif  vsrc['name'] == src2:
+                RHS_dc_sweep[src1_br] += src1_start - vsrc['dc_value']
+            elif vsrc['name'] == src2:
                 src2_br = vsrc['branch_info'] + col_normal - 1
-            else:
-                br = vsrc['branch_info'] + col_normal - 1
-                RHS_base[br] = vsrc['dc_value']
+                RHS_dc_sweep[src2_br] += src2_start - vsrc['dc_value']
+                
         for isrc in i_list:
             if isrc['name'] == src1:
                 src1_n1 = isrc['node+'] - 1
                 src1_n2 = isrc['node-'] - 1
+                if src1_n1 < 0:
+                    RHS_dc_sweep[src1_n2] += src1_start - isrc['dc_value']
+                else:
+                    RHS_dc_sweep[src1_n1] += - src1_start - isrc['dc_value']
+                    if src1_n2 >= 0:
+                        RHS_dc_sweep[src1_n2] += src1_start - isrc['dc_value']
+                        
             elif isrc['name'] == src2:
                 src2_n1 = isrc['node+'] - 1
                 src2_n2 = isrc['node-'] - 1
-            else:
-                n1 = isrc['node+'] - 1
-                n2 = isrc['node-'] - 1
-                if n1 < 0:
-                    RHS_base[n2] += isrc['dc_value']
+                if src2_n1 < 0:
+                    RHS_dc_sweep[src2_n2] += src2_start - isrc['dc_value']
                 else:
-                    RHS_base[n1] += -isrc['dc_value']
-                    if n2 >= 0:
-                        RHS_base[n2] += isrc['dc_value']
+                    RHS_dc_sweep[src2_n1] += - src2_start - isrc['dc_value']
+                    if src2_n2 >= 0:
+                        RHS_dc_sweep[src2_n2] += src2_start - isrc['dc_value']
+                        
         if src2[0] == "v":
             while src2_cur_value <= src2_end:
-                text_output.insert(END, '\n\n' + src2 + '=' + str(src2_cur_value) + 'V:' )
+                text_output.insert(END, '\n\n' + src2 + '=' + str(src2_cur_value) + 'V:')
                 dc_res_list = []
                 src1_cur_value = src1_start
                 if src1[0] == "v":
                     while src1_cur_value <= src1_end:
-                        RHS_dc_sweep = [0] * rows
-                        RHS_dc_sweep[src1_br] += src1_cur_value
-                        RHS_dc_sweep[src2_br] += src2_cur_value
-                        RHS_dc_sweep = map(lambda (a, b): a + b, zip(RHS_dc_sweep, RHS_base))
-                        dc_res_list.append(nonlinear_analysis(d_list, mos_list, MNA_dc, RHS_dc_sweep, rows))
-                        if src2_cur_value == control_command[6]:
+                        dc_res_list.append(res_compute(d_list, mos_list, MNA_dc, RHS_dc_sweep, rows))
+                        if src2_cur_value == src2_start:
                             dc_sweep_list.append(src1_cur_value)
-                        text_output.insert(END, '\n'+src1 + '=' + str(src1_cur_value) + 'V\n' + 'result: ')
+                        text_output.insert(END, '\n' + src1 + '=' + str(src1_cur_value) + 'V\n' + 'result: ')
                         text_output.insert(END, dc_res_list[-1])
                         src1_cur_value += src1_step
+                        RHS_dc_sweep[src1_br] += src1_step
+                    RHS_dc_sweep[src1_br] -= src1_cur_value - src1_start
                 else:
                     while src1_cur_value <= src1_end:
-                        RHS_dc_sweep = [0] * rows
-                        RHS_dc_sweep[src2_br] += src2_cur_value
-                        if src1_n1 < 0:
-                            RHS_dc_sweep[src1_n2] += src1_cur_value
-                        else:
-                            RHS_dc_sweep[src1_n1] += - src1_cur_value
-                            if src1_n2 >= 0:
-                                RHS_dc_sweep[src1_n2] += src1_cur_value
-                        RHS_dc_sweep = map(lambda (a, b): a + b, zip(RHS_dc_sweep, RHS_base))
-                        dc_res_list.append(nonlinear_analysis(d_list, mos_list, MNA_dc, RHS_dc_sweep, rows))
+                        dc_res_list.append(res_compute(d_list, mos_list, MNA_dc, RHS_dc_sweep, rows))
                         dc_sweep_list.append(src1_cur_value)
-                        if src2_cur_value == control_command[6]:
+                        if src2_cur_value == src2_start:
                             dc_sweep_list.append(src1_cur_value)
                         text_output.insert(END, '\n' + src1 + '=' + str(src1_cur_value) + 'A\n' + 'result: ')
                         text_output.insert(END, dc_res_list[-1])
                         src1_cur_value += src1_step
+                        if src1_n1 < 0:
+                            RHS_dc_sweep[src1_n2] += src1_step
+                        else:
+                            RHS_dc_sweep[src1_n1] += - src1_step
+                            if src1_n2 >= 0:
+                                RHS_dc_sweep[src1_n2] += src1_step
+                    if src1_n1 < 0:
+                        RHS_dc_sweep[src1_n2] -= src1_cur_value - src1_start
+                    else:
+                        RHS_dc_sweep[src1_n1] += src1_cur_value - src1_start
+                        if src1_n2 >= 0:
+                            RHS_dc_sweep[src1_n2] -= src1_cur_value - src1_start
                 dc_2srcs_res_list.append(dc_res_list)
                 dc_2srcs_sweep_list.append(src2_cur_value)
                 src2_cur_value += src2_step
+                RHS_dc_sweep[src2_br] += src2_step
 
         else:
             while src2_cur_value <= src2_end:
-                text_output.insert(END, '\n\n' + src2 + '=' + str(src2_cur_value) + 'A:' )
+                text_output.insert(END, '\n\n' + src2 + '=' + str(src2_cur_value) + 'A:')
                 dc_res_list = []
                 src1_cur_value = src1_start
                 if src1[0] == "v":
                     while src1_cur_value <= src1_end:
-                        RHS_dc_sweep = [0] * rows
-                        RHS_dc_sweep[src1_br] += src1_cur_value
-                        if src2_n1 < 0:
-                            RHS_dc_sweep[src2_n2] += src2_cur_value
-                        else:
-                            RHS_dc_sweep[src2_n1] += - src2_cur_value
-                            if src2_n2 >= 0:
-                                RHS_dc_sweep[src2_n2] += src2_cur_value
-                        RHS_dc_sweep = map(lambda (a, b): a + b, zip(RHS_dc_sweep, RHS_base))
-                        dc_res_list.append(nonlinear_analysis(d_list, mos_list, MNA_dc, RHS_dc_sweep, rows))
+                        dc_res_list.append(res_compute(d_list, mos_list, MNA_dc, RHS_dc_sweep, rows))
                         if src2_cur_value == control_command[6]:
                             dc_sweep_list.append(src1_cur_value)
                         text_output.insert(END, '\n' + src1 + '=' + str(src1_cur_value) + 'V\n' + 'result: ')
                         text_output.insert(END, dc_res_list[-1])
                         src1_cur_value += src1_step
+                        RHS_dc_sweep[src1_br] += src1_step
+                    RHS_dc_sweep[src1_br] -= src1_cur_value - src1_start
                 else:
                     while src1_cur_value <= src1_end:
-                        RHS_dc_sweep = [0] * rows
-                        if src1_n1 < 0:
-                            RHS_dc_sweep[src1_n2] += src1_cur_value
-                        else:
-                            RHS_dc_sweep[src1_n1] += - src1_cur_value
-                            if src1_n2 >= 0:
-                                RHS_dc_sweep[src1_n2] += src1_cur_value
-                        if src2_n1 < 0:
-                            RHS_dc_sweep[src2_n2] += src2_cur_value
-                        else:
-                            RHS_dc_sweep[src2_n1] += - src2_cur_value
-                            if src2_n2 >= 0:
-                                RHS_dc_sweep[src2_n2] += src2_cur_value
-                        RHS_dc_sweep = map(lambda (a, b): a + b, zip(RHS_dc_sweep, RHS_base))
-                        dc_res_list.append(nonlinear_analysis(d_list, mos_list, MNA_dc, RHS_dc_sweep, rows))
+                        dc_res_list.append(res_compute(d_list, mos_list, MNA_dc, RHS_dc_sweep, rows))
                         if src2_cur_value == control_command[6]:
                             dc_sweep_list.append(src1_cur_value)
                         text_output.insert(END, '\n' + src1 + '=' + str(src1_cur_value) + 'A\n' + 'result: ')
                         text_output.insert(END, dc_res_list[-1])
                         src1_cur_value += src1_step
+                        if src1_n1 < 0:
+                            RHS_dc_sweep[src1_n2] += src1_step
+                        else:
+                            RHS_dc_sweep[src1_n1] += - src1_step
+                            if src1_n2 >= 0:
+                                RHS_dc_sweep[src1_n2] += src1_step
+                    if src1_n1 < 0:
+                        RHS_dc_sweep[src1_n2] -= src1_cur_value - src1_start
+                    else:
+                        RHS_dc_sweep[src1_n1] += src1_cur_value - src1_start
+                        if src1_n2 >= 0:
+                            RHS_dc_sweep[src1_n2] -= src1_cur_value - src1_start
                 dc_2srcs_res_list.append(dc_res_list)
                 dc_2srcs_sweep_list.append(src2_cur_value)
                 src2_cur_value += src2_step
+                if src2_n1 < 0:
+                    RHS_dc_sweep[src2_n2] += src2_step
+                else:
+                    RHS_dc_sweep[src2_n1] += - src2_step
+                    if src2_n2 >= 0:
+                        RHS_dc_sweep[src2_n2] += src2_step
+
 
 def ac_sweep(rows, col_normal, c_list, l_list, MNA_dc, RHS_ac, points, step, ac_res_list, freq_list,
              start, type, text_output):
@@ -301,8 +308,8 @@ def ac_sweep(rows, col_normal, c_list, l_list, MNA_dc, RHS_ac, points, step, ac_
 
         for l_element in l_list:
             sl = complex(0, omega * l_element[3])
-            br_l = l_element[-1] + col_normal
-            MNA_ac[br_l - 1, br_l - 1] += -sl
+            br_l = l_element[-1] + col_normal - 1
+            MNA_ac[br_l, br_l] += -sl
         MNA_ac += MNA_dc
         # print ("omega = %f rad/s" % omega)
         # print "MNA_ac:", MNA_ac
@@ -340,7 +347,8 @@ def ac_analysis(control_command, rows, col_normal, c_list, l_list, MNA_dc, RHS_a
 
 
 def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
-                  c_list, l_list, v_list, i_list, d_list, mos_list, time_list, rows, col_normal, tran_rows, text_output):
+                  c_list, l_list, v_list, i_list, d_list, mos_list, time_list, rows, col_normal, tran_rows,
+                  text_output):
     tstep_print = control_command[1]
     tstop = control_command[2]
     if len(control_command) > 3:
@@ -380,8 +388,8 @@ def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
         time_list.append(time)
         # print ("start time = %f s" % time)
         # print "results:", tran_res_list[-1]
-        text_output.insert(END,("\nstart time = %e s\nresult: " % time))
-        text_output.insert(END,tran_res_list[-1])
+        text_output.insert(END, ("\nstart time = %e s\nresult: " % time))
+        text_output.insert(END, tran_res_list[-1])
         tran_print_list.append(tran_res_list[-1])
 
     else:
@@ -412,22 +420,22 @@ def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
 
             for vsrc in v_list:
                 br = vsrc['branch_info'] + col_normal - 1
-                if(vsrc['tran_type'] == "sin"):
+                if (vsrc['tran_type'] == "sin"):
                     RHS_tran[br] += vsrc['dc_value'] + vsrc['tran_mag'] * math.sin(pi2 * vsrc['tran_freq'] * time)
-                if(vsrc['tran_type']=="pulse"):
-                    slope_r = (vsrc['pulse_v2'] - vsrc['pulse_v1'])/vsrc['tr']
-                    slope_f = -(vsrc['pulse_v2'] - vsrc['pulse_v1'])/vsrc['tf']
+                if (vsrc['tran_type'] == "pulse"):
+                    slope_r = (vsrc['pulse_v2'] - vsrc['pulse_v1']) / vsrc['tr']
+                    slope_f = -(vsrc['pulse_v2'] - vsrc['pulse_v1']) / vsrc['tf']
                     if time <= vsrc['td']:
                         RHS_tran[br] += vsrc['dc_value']
                     else:
-                        time_in_per = time - vsrc['td'] - int((time - vsrc['td'])/vsrc['per'])*vsrc['per']
+                        time_in_per = time - vsrc['td'] - int((time - vsrc['td']) / vsrc['per']) * vsrc['per']
                         # print "time_in_per",time_in_per
                         if time_in_per < vsrc['tr']:
-                            RHS_tran[br] += vsrc['pulse_v1'] + time_in_per*slope_r
-                        elif time_in_per<vsrc['tr']+vsrc['pw']:
+                            RHS_tran[br] += vsrc['pulse_v1'] + time_in_per * slope_r
+                        elif time_in_per < vsrc['tr'] + vsrc['pw']:
                             RHS_tran[br] += vsrc['pulse_v2']
-                        elif time_in_per<vsrc['tr']+vsrc['pw']+vsrc['tf']:
-                            RHS_tran[br] += vsrc['pulse_v2'] + slope_f*(time_in_per-vsrc['tr']-vsrc['pw'])
+                        elif time_in_per < vsrc['tr'] + vsrc['pw'] + vsrc['tf']:
+                            RHS_tran[br] += vsrc['pulse_v2'] + slope_f * (time_in_per - vsrc['tr'] - vsrc['pw'])
                         else:
                             RHS_tran[br] += vsrc['pulse_v1']
 
@@ -436,36 +444,36 @@ def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
                 n2 = isrc['node-'] - 1
                 if n1 < 0:
                     if (isrc['tran_type'] == "sin"):
-                         value_plus = isrc['dc_value'] + isrc['tran_mag'] * math.sin(pi2 * isrc['tran_freq'] * time)
+                        value_plus = isrc['dc_value'] + isrc['tran_mag'] * math.sin(pi2 * isrc['tran_freq'] * time)
                     if (isrc['tran_type'] == "pulse"):
                         slope_r = (isrc['pulse_v2'] - isrc['pulse_v1']) / isrc['tr']
                         slope_f = -(isrc['pulse_v2'] - isrc['pulse_v1']) / isrc['tf']
                         if time <= isrc['td']:
-                             value_plus = isrc['dc_value']
+                            value_plus = isrc['dc_value']
                         else:
                             time_in_per = time - isrc['td'] - int((time - isrc['td']) / isrc['per']) * isrc['per']
                             if time_in_per < isrc['tr']:
-                                 value_plus = isrc['pulse_v1'] + time_in_per * slope_r
+                                value_plus = isrc['pulse_v1'] + time_in_per * slope_r
                             elif time_in_per < isrc['tr'] + isrc['pw']:
-                                 value_plus = isrc['pulse_v2']
+                                value_plus = isrc['pulse_v2']
                             elif time_in_per < isrc['tr'] + isrc['pw'] + isrc['tf']:
-                                 value_plus = isrc['pulse_v2'] + slope_f * (time_in_per - isrc['tr'] - isrc['pw'])
+                                value_plus = isrc['pulse_v2'] + slope_f * (time_in_per - isrc['tr'] - isrc['pw'])
                             else:
-                                 value_plus = isrc['pulse_v1']
+                                value_plus = isrc['pulse_v1']
                     RHS_tran[n2] += value_plus
                 else:
                     RHS_tran[n1] += -value_plus
                     if n2 >= 0:
                         RHS_tran[n2] += value_plus
 
-            cur_res = nonlinear_analysis(d_list, mos_list, MNA_tran, RHS_tran, tran_rows)
+            cur_res = res_compute_tran(d_list, mos_list, MNA_tran, RHS_tran, tran_rows, last_res)
             # cur_res = np.linalg.solve(MNA_tran, RHS_tran)
             tran_res_list.append(cur_res)
         time_list.append(time)
         # print ("start time = %f s" % time)
         # print "results:", tran_res_list[-1]
-        text_output.insert(END,("\nstart time = %e s\nresult: " % time))
-        text_output.insert(END,tran_res_list[-1])
+        text_output.insert(END, ("\nstart time = %e s\nresult: " % time))
+        text_output.insert(END, tran_res_list[-1])
         tran_print_list.append(tran_res_list[-1])
 
     time_n_printstep = time + tstep_print
@@ -496,7 +504,7 @@ def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
 
         for vsrc in v_list:
             br = vsrc['branch_info'] + col_normal - 1
-            if(vsrc['tran_type'] == "non"):
+            if (vsrc['tran_type'] == "non"):
                 RHS_tran[br] += vsrc['dc_value']
             if (vsrc['tran_type'] == "sin"):
                 RHS_tran[br] += vsrc['dc_value'] + vsrc['tran_mag'] * math.sin(pi2 * vsrc['tran_freq'] * time)
@@ -546,7 +554,7 @@ def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
                 if n2 >= 0:
                     RHS_tran[n2] += value_plus
 
-        cur_res = nonlinear_analysis(d_list, mos_list, MNA_tran, RHS_tran, tran_rows)
+        cur_res = res_compute_tran(d_list, mos_list, MNA_tran, RHS_tran, tran_rows, last_res)
         # cur_res = np.linalg.solve(MNA_tran, RHS_tran)
         tran_res_list.append(cur_res)
         if time >= time_n_printstep:
@@ -561,8 +569,8 @@ def tran_analysis(control_command, MNA_tran, tran_res_list, tran_print_list,
             time_n_printstep += tstep_print
 
 
-def nonlinear_analysis(d_list, mos_list, MNA_base, RHS_base, rows):
-    if (len(d_list) == 0 )and (len(mos_list) == 0):
+def res_compute(d_list, mos_list, MNA_base, RHS_base, rows):
+    if (len(d_list) == 0) and (len(mos_list) == 0):
         # print "linear"
         # print "MNA:", MNA_base
         # print "RHS:", RHS_base
@@ -607,7 +615,6 @@ def nonlinear_analysis(d_list, mos_list, MNA_base, RHS_base, rows):
                         MNA_nonlinear[n2, n1] += -G0
                         MNA_nonlinear[n2, n2] += G0
                         RHS_nonlinear[n2] += I0
-
             if len(mos_list) != 0:
                 for mos_element in mos_list:
                     drain_node = mos_element['drain'] - 1
@@ -616,13 +623,13 @@ def nonlinear_analysis(d_list, mos_list, MNA_base, RHS_base, rows):
                     # body_node = mos_element['body'] - 1
                     width = mos_element['width']
                     length = mos_element['length']
-
                     if times == 1:
                         if mos_element['model_name'] == 'nmos':
                             vgs = 0.9
+                            vds = 0.2
                         else:
                             vgs = -0.9
-                        vds = 0
+                            vds = -0.2
                         flag = 0
                     else:
                         vgs = res[gate_node]
@@ -633,19 +640,18 @@ def nonlinear_analysis(d_list, mos_list, MNA_base, RHS_base, rows):
                         if times == 2:
                             if mos_element['model_name'] == 'nmos':
                                 vgs_last = 0.9
+                                vds_last = 0.2
                             else:
                                 vgs_last = -0.9
-                            vds_last = 0
+                                vds_last = -0.2
                         else:
                             vgs_last = res_last[gate_node]
                             vds_last = res_last[drain_node]
                             if source_node >= 0:
                                 vgs_last -= res_last[source_node]
                                 vds_last -= res_last[source_node]
-
                         if (abs(vgs - vgs_last) > 0.02 * abs(vgs_last)) or (abs(vds - vds_last) > 0.02 * abs(vds_last)):
                             flag = 0
-
                     if mos_element['model_name'] == 'nmos':
                         vt0 = 0.43
                         # gamma = 0.4
@@ -653,11 +659,12 @@ def nonlinear_analysis(d_list, mos_list, MNA_base, RHS_base, rows):
                         k = 1.15e-4
                         Lambda = 0.06
                         vov = vgs - vt0
-                        if vov > 0:
+                        if vov >= 0:
                             if (vds <= vov) and (vds > 0):
                                 ids = k * (vov * vds - 0.5 * vds * vds) * (1 + Lambda * vds) * width / length
                                 gm = k * vds * (1 + Lambda * vds) * width / length
-                                gds = k * (vov + (2 * Lambda * vov - 1) * vds - 1.5 * Lambda * vds * vds) * width / length
+                                gds = k * (vov + (
+                                        2 * Lambda * vov - 1) * vds - 1.5 * Lambda * vds * vds) * width / length
                             elif vds > vov:
                                 ids = 0.5 * k * vov * vov * (1 + Lambda * vds) * width / length
                                 gm = k * vds * vov * width / length
@@ -677,11 +684,12 @@ def nonlinear_analysis(d_list, mos_list, MNA_base, RHS_base, rows):
                         k = -3.0e-5
                         Lambda = -0.1
                         vov = vgs - vt0
-                        if vov < 0:
+                        if vov <= 0:
                             if (vds >= vov) and (vds < 0):
                                 ids = k * (vov * vds - 0.5 * vds * vds) * (1 + Lambda * vds) * width / length
                                 gm = k * vds * (1 + Lambda * vds) * width / length
-                                gds = k * (vov + (2 * Lambda * vov - 1) * vds - 1.5 * Lambda * vds * vds) * width / length
+                                gds = k * (vov + (
+                                        2 * Lambda * vov - 1) * vds - 1.5 * Lambda * vds * vds) * width / length
                             elif vds < vov:
                                 ids = 0.5 * k * vov * vov * (1 + Lambda * vds) * width / length
                                 gm = k * vds * vov * width / length
@@ -694,7 +702,6 @@ def nonlinear_analysis(d_list, mos_list, MNA_base, RHS_base, rows):
                             ids = 0
                             gm = 0
                             gds = 0
-
                     I0 = ids - gm * vgs - gds * vds
                     MNA_nonlinear[drain_node, drain_node] += gds
                     MNA_nonlinear[drain_node, gate_node] += gm
@@ -705,11 +712,9 @@ def nonlinear_analysis(d_list, mos_list, MNA_base, RHS_base, rows):
                         MNA_nonlinear[source_node, drain_node] += -gds
                         MNA_nonlinear[source_node, gate_node] += -gm
                         RHS_nonlinear[source_node] += I0
-
             if flag == 1:
                 # print "final results:", res
                 break
-
             MNA_nonlinear += MNA_base
             RHS_nonlinear = map(lambda (a, b): a + b, zip(RHS_nonlinear, RHS_base))
             if times > 1:
@@ -720,4 +725,147 @@ def nonlinear_analysis(d_list, mos_list, MNA_base, RHS_base, rows):
             # print "RHS:", RHS_nonlinear
             # print "results:", res
             times += 1
+            if times > 500:
+                break
+    return res
+
+
+def res_compute_tran(d_list, mos_list, MNA_base, RHS_base, rows, res):
+    if (len(d_list) == 0) and (len(mos_list) == 0):
+        # print "linear"
+        # print "MNA:", MNA_base
+        # print "RHS:", RHS_base
+        res = np.linalg.solve(MNA_base, RHS_base)
+        # print "results:", res
+    else:
+        # print "Nonlinear"
+        flag = 0
+        times = 1
+        while flag == 0:
+            flag = 1
+            MNA_nonlinear = np.zeros((rows, rows))
+            RHS_nonlinear = [0] * rows
+            if len(d_list) != 0:
+                for d_element in d_list:
+                    n1 = d_element[1] - 1
+                    n2 = d_element[2] - 1
+                    vd = res[n1]
+                    if n2 >= 0:
+                        vd -= res[n2]
+                    if times > 1:
+                        vd_last = res_last[n1]
+                        if n2 >= 0:
+                            vd_last -= res_last[n2]
+                        if abs(vd - vd_last) > 0.02 * abs(vd_last):
+                            flag = 0
+                    else:
+                        flag = 0
+                    G0 = 40 * math.exp(40 * vd)
+                    I0 = -G0 * vd + math.exp(40 * vd) - 1
+                    MNA_nonlinear[n1, n1] += G0
+                    RHS_nonlinear[n1] += -I0
+                    if n2 >= 0:
+                        MNA_nonlinear[n1, n2] += -G0
+                        MNA_nonlinear[n2, n1] += -G0
+                        MNA_nonlinear[n2, n2] += G0
+                        RHS_nonlinear[n2] += I0
+            if len(mos_list) != 0:
+                for mos_element in mos_list:
+                    drain_node = mos_element['drain'] - 1
+                    source_node = mos_element['source'] - 1
+                    gate_node = mos_element['gate'] - 1
+                    # body_node = mos_element['body'] - 1
+                    width = mos_element['width']
+                    length = mos_element['length']
+
+                    vgs = res[gate_node]
+                    vds = res[drain_node]
+                    if source_node >= 0:
+                        vgs -= res[source_node]
+                        vds -= res[source_node]
+
+                    if times == 1:
+                        flag = 0
+                    else:
+                        vgs_last = res_last[gate_node]
+                        vds_last = res_last[drain_node]
+                        if source_node >= 0:
+                            vgs_last -= res_last[source_node]
+                            vds_last -= res_last[source_node]
+                        if (abs(vgs - vgs_last) > 0.02 * abs(vgs_last)) or (abs(vds - vds_last) > 0.02 * abs(vds_last)):
+                            flag = 0
+                    if mos_element['model_name'] == 'nmos':
+                        vt0 = 0.43
+                        # gamma = 0.4
+                        # phi = 0.6
+                        k = 1.15e-4
+                        Lambda = 0.06
+                        vov = vgs - vt0
+                        if vov >= 0:
+                            if (vds <= vov) and (vds > 0):
+                                ids = k * (vov * vds - 0.5 * vds * vds) * (1 + Lambda * vds) * width / length
+                                gm = k * vds * (1 + Lambda * vds) * width / length
+                                gds = k * (vov + (
+                                        2 * Lambda * vov - 1) * vds - 1.5 * Lambda * vds * vds) * width / length
+                            elif vds > vov:
+                                ids = 0.5 * k * vov * vov * (1 + Lambda * vds) * width / length
+                                gm = k * vds * vov * width / length
+                                gds = Lambda * ids
+                            else:
+                                ids = k * (vov * vds - 0.5 * vds * vds) * width / length
+                                gm = k * vds * width / length
+                                gds = k * (vov - vds) * width / length
+                        else:
+                            ids = 0
+                            gm = 0
+                            gds = 0
+                    else:
+                        vt0 = -0.4
+                        # gamma = -0.4
+                        # phi = 0.6
+                        k = -3.0e-5
+                        Lambda = -0.1
+                        vov = vgs - vt0
+                        if vov <= 0:
+                            if (vds >= vov) and (vds < 0):
+                                ids = k * (vov * vds - 0.5 * vds * vds) * (1 + Lambda * vds) * width / length
+                                gm = k * vds * (1 + Lambda * vds) * width / length
+                                gds = k * (vov + (
+                                        2 * Lambda * vov - 1) * vds - 1.5 * Lambda * vds * vds) * width / length
+                            elif vds < vov:
+                                ids = 0.5 * k * vov * vov * (1 + Lambda * vds) * width / length
+                                gm = k * vds * vov * width / length
+                                gds = Lambda * ids
+                            else:
+                                ids = k * (vov * vds - 0.5 * vds * vds) * width / length
+                                gm = k * vds * width / length
+                                gds = k * (vov - vds) * width / length
+                        else:
+                            ids = 0
+                            gm = 0
+                            gds = 0
+                    I0 = ids - gm * vgs - gds * vds
+                    MNA_nonlinear[drain_node, drain_node] += gds
+                    MNA_nonlinear[drain_node, gate_node] += gm
+                    RHS_nonlinear[drain_node] += -I0
+                    if source_node >= 0:
+                        MNA_nonlinear[drain_node, source_node] += -gds - gm
+                        MNA_nonlinear[source_node, source_node] += gds + gm
+                        MNA_nonlinear[source_node, drain_node] += -gds
+                        MNA_nonlinear[source_node, gate_node] += -gm
+                        RHS_nonlinear[source_node] += I0
+            if flag == 1:
+                # print "final results:", res
+                break
+            MNA_nonlinear += MNA_base
+            RHS_nonlinear = map(lambda (a, b): a + b, zip(RHS_nonlinear, RHS_base))
+            res_last = res
+            res = list(np.linalg.solve(MNA_nonlinear, RHS_nonlinear))
+            print "times:", times
+            print "MNA:", MNA_nonlinear
+            print "RHS:", RHS_nonlinear
+            print "results:", res
+            times += 1
+            if times > 500:
+                break
     return res
