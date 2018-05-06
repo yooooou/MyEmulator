@@ -1,7 +1,8 @@
 # coding: utf-8
 # python 2.7
-from Tkconstants import END
 import math
+from Tkconstants import END
+
 import numpy as np
 
 
@@ -9,14 +10,14 @@ def dc_stamp(col_normal, MNA_dc, RHS_dc, RHS_ac, v_list, i_list, d_list, mos_lis
     for vsrc in v_list:
         n1 = vsrc['node+'] - 1
         n2 = vsrc['node-'] - 1
-        br = vsrc['branch_info'] + col_normal
-        RHS_dc[br - 1] = vsrc['dc_value']
-        RHS_ac[br - 1] = vsrc['ac_mag']
-        MNA_dc[n1, br - 1] += 1
-        MNA_dc[br - 1, n1] += 1
+        br = vsrc['branch_info'] + col_normal - 1
+        RHS_dc[br] = vsrc['dc_value']
+        RHS_ac[br] = vsrc['ac_mag']
+        MNA_dc[n1, br] += 1
+        MNA_dc[br, n1] += 1
         if n2 >= 0:
-            MNA_dc[n2, br - 1] += -1
-            MNA_dc[br - 1, n2] += -1
+            MNA_dc[n2, br] += -1
+            MNA_dc[br, n2] += -1
 
     for isrc in i_list:
         n1 = isrc['node+'] - 1
@@ -43,25 +44,25 @@ def dc_stamp(col_normal, MNA_dc, RHS_dc, RHS_ac, v_list, i_list, d_list, mos_lis
                 MNA_dc[n2, n2] += g
 
         elif element[0][0] == "e":
-            br = element[-1] + col_normal
+            br = element[-1] + col_normal - 1
             n3 = element[3] - 1
             n4 = element[4] - 1
-            MNA_dc[n1, br - 1] += 1
-            MNA_dc[br - 1, n1] += 1
-            MNA_dc[br - 1, n3] += -element[5]
+            MNA_dc[n1, br] += 1
+            MNA_dc[br, n1] += 1
+            MNA_dc[br, n3] += -element[5]
             if n2 >= 0:
-                MNA_dc[n2, br - 1] += -1
-                MNA_dc[br - 1, n2] += -1
+                MNA_dc[n2, br] += -1
+                MNA_dc[br, n2] += -1
             if n4 >= 0:
-                MNA_dc[br - 1, n4] += element[5]
+                MNA_dc[br, n4] += element[5]
         elif element[0][0] == "f":
             for v_comp in v_list:
                 if v_comp[0] == element[3]:
-                    br = v_comp[-1] + col_normal
+                    br = v_comp[-1] + col_normal - 1
                     if n1 >= 0:
-                        MNA_dc[n1, br - 1] += element[4]
+                        MNA_dc[n1, br] += element[4]
                     if n2 >= 0:
-                        MNA_dc[n2, br - 1] += -element[4]
+                        MNA_dc[n2, br] += -element[4]
                     break
         elif element[0][0] == "g":
             n3 = element[3] - 1
@@ -75,27 +76,27 @@ def dc_stamp(col_normal, MNA_dc, RHS_dc, RHS_ac, v_list, i_list, d_list, mos_lis
                 if n4 >= 0:
                     MNA_dc[n1, n4] += element[5]
         elif element[0][0] == "h":
-            br_vs = element[-1] + col_normal
-            MNA_dc[n1, br_vs - 1] += 1
-            MNA_dc[br_vs - 1, n1] += 1
+            br_vs = element[-1] + col_normal - 1
+            MNA_dc[n1, br_vs] += 1
+            MNA_dc[br_vs, n1] += 1
             if n2 >= 0:
-                MNA_dc[n2, br_vs - 1] += -1
-                MNA_dc[br_vs - 1, n2] += -1
+                MNA_dc[n2, br_vs] += -1
+                MNA_dc[br_vs, n2] += -1
             for v_comp in v_list:
                 if v_comp[0] == element[3]:
                     br = v_comp[-1] + col_normal
-                    MNA_dc[br_vs - 1, br - 1] = -element[4]
+                    MNA_dc[br_vs, br] = -element[4]
                 break
 
     for l_element in l_list:
         n1 = l_element[1] - 1
         n2 = l_element[2] - 1
-        br_l = l_element[-1] + col_normal
-        MNA_dc[n1, br_l - 1] += 1
-        MNA_dc[br_l - 1, n1] += 1
+        br_l = l_element[-1] + col_normal - 1
+        MNA_dc[n1, br_l] += 1
+        MNA_dc[br_l, n1] += 1
         if n2 >= 0:
-            MNA_dc[n2, br_l - 1] += -1
-            MNA_dc[br_l - 1, n2] += -1
+            MNA_dc[n2, br_l] += -1
+            MNA_dc[br_l, n2] += -1
     return nonlinear_analysis(d_list, mos_list, MNA_dc, RHS_dc, rows)
 
 def dc_sweep(control_command, MNA_dc, v_list, i_list, dc_sweep_list, dc_2srcs_res_list,dc_2srcs_sweep_list,
@@ -118,6 +119,7 @@ def dc_sweep(control_command, MNA_dc, v_list, i_list, dc_sweep_list, dc_2srcs_re
                 RHS_base[br] = vsrc['dc_value']
             else:
                 src1_br = vsrc['branch_info'] + col_normal - 1
+                
         for isrc in i_list:
             if isrc['name'] !=src1:
                 n1 = isrc['node+'] - 1
@@ -301,8 +303,8 @@ def ac_sweep(rows, col_normal, c_list, l_list, MNA_dc, RHS_ac, points, step, ac_
 
         for l_element in l_list:
             sl = complex(0, omega * l_element[3])
-            br_l = l_element[-1] + col_normal
-            MNA_ac[br_l - 1, br_l - 1] += -sl
+            br_l = l_element[-1] + col_normal - 1
+            MNA_ac[br_l, br_l] += -sl
         MNA_ac += MNA_dc
         # print ("omega = %f rad/s" % omega)
         # print "MNA_ac:", MNA_ac

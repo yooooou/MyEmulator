@@ -70,9 +70,7 @@ def line_parser(line, col_br_list, l_list, c_list, element_list, v_list, i_list,
     branch_c = col_br_list[2]
     line_elements = re.split(r'[=\s(),]+', line)  # extract line elements separated by spaces "=" "(" ")"
     if line[0] == "*":
-        # print "comment line:", line
-        pass
-    # elif line[0] in ["r","c","l","d","m","v","i","e","f","g","h","s"]:
+        print "comment line:", line
     elif line[0] in ["r", "c", "v", "l", "i", "d", "m"]:
         for i in range(1, 3):
             line_elements[i] = int(line_elements[i])
@@ -204,7 +202,7 @@ def line_parser(line, col_br_list, l_list, c_list, element_list, v_list, i_list,
 
     elif line[0] == ".":
         line_elements[0] = line_elements[0].replace(".", "")
-        if line_elements[0] != "model" :    #.dc .ac .tran
+        if line_elements[0] != "model" :    #.dc .ac .tran .print
             for i in range(1,len(line_elements)):
                 try:line_elements[i] = str2num(line_elements[i])
                 except ValueError: pass
