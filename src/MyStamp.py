@@ -586,13 +586,13 @@ def res_compute(d_list, mos_list, MNA_base, RHS_base, rows):
                     n1 = d_element[1] - 1
                     n2 = d_element[2] - 1
                     if times == 1:
-                        vd = 0.1
+                        vd = 0.5
                         flag = 0
                     elif times == 2:
                         vd = res[n1]
                         if n2 >= 0:
                             vd -= res[n2]
-                        vd_last = 0.1
+                        vd_last = 0.5
                         if abs(vd - vd_last) > 0.02 * abs(vd_last):
                             flag = 0
                     else:
